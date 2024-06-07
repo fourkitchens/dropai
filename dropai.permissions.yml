@@ -1,0 +1,5 @@
+# Permission to access the entity inspector tool.
+access dropai inspector:
+  description: 'View developer output like tokenizer and embedding details.'
+  title: 'Access DropAI Inspector'
+  restrict access: TRUE

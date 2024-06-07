@@ -1,0 +1,5 @@
+name: 'dropai'
+type: module
+description: 'Transform Drupal websites into AI-powered platforms.'
+package: 'DropAI'
+core_version_requirement: ^10 || ^11

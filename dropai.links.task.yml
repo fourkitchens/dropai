@@ -1,0 +1,4 @@
+# Conditionally add the AI Inspector local task to some entity types.
+dropai.inspect:
+  deriver: 'Drupal\dropai\Plugin\Derivative\DynamicLocalTasks'
+  weight: 100

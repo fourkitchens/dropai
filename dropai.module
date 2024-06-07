@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for dropai module.
+ */
+
+/**
+ * Implements hook_entity_type_build().
+ */
+function dropai_entity_type_build(array &$entity_types) {
+  // Iterate through all entity types to add the AI Inspector link template that
+  // follows the pattern: /dropai/node/{{nid}}/inspect.
+  foreach ($entity_types as $name => $type) {
+    $type->setLinkTemplate('dropai-inspect', "/dropai/$name/{{$name}}/inspect");
+  }
+}

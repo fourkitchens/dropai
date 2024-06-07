@@ -1,0 +1,16 @@
+{
+    "name": "fourkitchens/dropai",
+    "description": "TBD",
+    "type": "drupal-module",
+    "authors": [
+        {
+            "name": "nJim",
+            "email": "jim.vomero@fourkitchens.com"
+        }
+    ],
+    "require": {
+        "html2text/html2text": "^4.3",
+        "yethee/tiktoken": "^0.5.0",
+        "league/html-to-markdown": "^5.1"
+    }
+}

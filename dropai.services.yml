@@ -1,0 +1,7 @@
+services:
+  # Add and alter existing routes - used to add AI Inspector to entities.
+  dropai.route_subscriber:
+    class: Drupal\dropai\Routing\RouteSubscriber
+    arguments: ['@entity_type.manager']
+    tags:
+      - { name: event_subscriber }
