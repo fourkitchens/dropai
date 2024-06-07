@@ -1,6 +1,6 @@
 {
     "name": "fourkitchens/dropai",
-    "description": "TBD",
+    "description": "Transform Drupal websites into AI-powered platforms",
     "type": "drupal-module",
     "authors": [
         {
@@ -8,6 +8,7 @@
             "email": "jim.vomero@fourkitchens.com"
         }
     ],
+    "minimum-stability": "dev",
     "require": {
         "html2text/html2text": "^4.3",
         "yethee/tiktoken": "^0.5.0",
