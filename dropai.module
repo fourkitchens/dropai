@@ -5,6 +5,8 @@
  * Primary module hooks for dropai module.
  */
 
+ use Drupal\Core\Entity\EntityInterface;
+
 /**
  * Implements hook_entity_type_build().
  */
@@ -14,4 +16,25 @@ function dropai_entity_type_build(array &$entity_types) {
   foreach ($entity_types as $name => $type) {
     $type->setLinkTemplate('dropai-inspect', "/dropai/$name/{{$name}}/inspect");
   }
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function dropai_entity_insert(EntityInterface $entity) {
+  \Drupal::service('dropai.entity_update')->upsertDocument($entity);
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function dropai_entity_update(EntityInterface $entity) {
+  \Drupal::service('dropai.entity_update')->upsertDocument($entity);
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function dropai_entity_delete(EntityInterface $entity) {
+  \Drupal::service('dropai.entity_update')->removeDocument($entity);
 }
