@@ -1,0 +1,6 @@
+# Add DropAI settings page to the admin menu.
+dropai.admin:
+  route_name: dropai.admin
+  parent: system.admin_config
+  title: DropAI
+  weight: -10

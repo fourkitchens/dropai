@@ -1,3 +1,8 @@
+# Permission to access and update admin interfaces.
+administer dropai:
+  title: 'Administer DropAI'
+  description: 'Set and change DropAI Settings.'
+  restrict access: TRUE
 # Permission to access the entity inspector tool.
 access dropai inspector:
   description: 'View developer output like tokenizer and embedding details.'
