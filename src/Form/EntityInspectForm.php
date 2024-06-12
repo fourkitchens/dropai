@@ -11,10 +11,10 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\RendererInterface;
-use Yethee\Tiktoken\EncoderProvider;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\dropai\Plugin\DropaiPreprocessorManager;
+use Drupal\dropai\Plugin\DropaiTokenizerManager;
 
 /**
  * Implements an entity Inspect form.
@@ -27,6 +27,13 @@ class EntityInspectForm extends FormBase {
    * @var \Drupal\dropai\Plugin\DropaiPreprocessorManager
    */
   protected $dropaiPreprocessorManager;
+
+  /**
+   * The DropAI Tokenizer plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiTokenizerManager
+   */
+  protected $dropaiTokenizerManager;
 
   /**
    * The entity type manager.
@@ -75,6 +82,8 @@ class EntityInspectForm extends FormBase {
    *
    * @param \Drupal\dropai\Plugin\DropaiPreprocessorManager $dropai_preprocessor_manager
    *   The DropAI Preprocessor plugin manager.
+   * @param \Drupal\dropai\Plugin\DropaiTokenizerManager $dropai_tokenizer_manager
+   *   The DropAI Tokenizer plugin manager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
@@ -90,6 +99,7 @@ class EntityInspectForm extends FormBase {
    */
   public function __construct(
     DropaiPreprocessorManager $dropai_preprocessor_manager,
+    DropaiTokenizerManager $dropai_tokenizer_manager,
     EntityTypeManagerInterface $entity_type_manager,
     RouteMatchInterface $route_match,
     MessengerInterface $messenger,
@@ -97,6 +107,7 @@ class EntityInspectForm extends FormBase {
     RendererInterface $renderer
   ) {
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
+    $this->dropaiTokenizerManager = $dropai_tokenizer_manager;
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $parameter_name = $route_match->getRouteObject()->getOption('_dropai_entity_type_id');
@@ -112,6 +123,7 @@ class EntityInspectForm extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('plugin.manager.dropai_preprocessor'),
+      $container->get('plugin.manager.dropai_tokenizer'),
       $container->get('entity_type.manager'),
       $container->get('current_route_match'),
       $container->get('messenger'),
@@ -209,23 +221,30 @@ class EntityInspectForm extends FormBase {
     $form['tokenizer']['controls'] = [
       '#type' => 'container',
     ];
-    $form['tokenizer']['controls']['tokenizer_model'] = [
+    $form['tokenizer']['controls']['tokenizer_plugin'] = [
       '#type' => 'select',
-      '#title' => 'Model',
-      '#default_value' => 'gpt-3.5-turbo-0301',
-      '#options' => [
-        'gpt-4o' => 'gpt-4o',
-        'gpt-4' => 'gpt-4',
-        'gpt-3.5-turbo' => 'gpt-3.5-turbo',
-        'text-embedding-ada-002' => 'text-embedding-ada-002',
-      ],
+      '#title' => 'Tokenizer',
+      '#default_value' => 'tiktoken',
+      '#options' => $this->dropaiTokenizerManager->getPluginOptions(),
       '#ajax' => [
         'callback' => '::updateFormParts',
         'event' => 'change',
       ],
     ];
-    $model = $form_state->getValue('tokenizer_model', 'gpt-3.5-turbo-0301');
-    $tokens = $this->tokenize($processed, $model);
+    $tokenizer_id = $form_state->getValue('tokenizer_plugin', 'tiktoken');
+    $tokenizer = $this->dropaiTokenizerManager->createInstance($tokenizer_id);
+    $form['tokenizer']['controls']['tokenizer_model'] = [
+      '#type' => 'select',
+      '#title' => 'Model',
+      '#default_value' => 'gpt-4o',
+      '#options' => $tokenizer->getModels(),
+      '#ajax' => [
+        'callback' => '::updateFormParts',
+        'event' => 'change',
+      ],
+    ];
+    $model = $form_state->getValue('tokenizer_model', 'gpt-4o');
+    $tokens = $tokenizer->tokenize($processed, $model);
     $form['tokenizer']['controls']['char_count'] = [
       '#type' => 'textfield',
       '#title' => 'Characters',
@@ -355,9 +374,8 @@ class EntityInspectForm extends FormBase {
    * AJAX callback to update multiple parts of the form.
    */
   public function updateFormParts(array &$form, FormStateInterface $form_state) {
+    // Rebuild wrappers with content that may conditionally change.
     $response = new AjaxResponse();
-
-    // Rebuild the cleaner wrapper.
     $response->addCommand(new ReplaceCommand('#source-wrapper', $form['source']));
     $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
     $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
@@ -379,12 +397,6 @@ class EntityInspectForm extends FormBase {
     $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
     $renderArray = $view_builder->view($entity, 'default');
     return $this->renderer->render($renderArray)->__toString();
-  }
-
-  public function tokenize($processed, $model) {
-    $provider = new EncoderProvider();
-    $encoder = $provider->getForModel($model);
-    return $encoder->encode($processed);
   }
 
   public function chunk($processed, $strategy, $chunkMaxSize, $chunkOverlap) {

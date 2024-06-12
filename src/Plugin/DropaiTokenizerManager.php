@@ -7,12 +7,12 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 
 /**
- * Plugin manager for DropAI Preprocessor plugins.
+ * Plugin manager for DropAI Tokenizer plugins.
  */
-class DropaiPreprocessorManager extends DefaultPluginManager {
+class DropaiTokenizerManager extends DefaultPluginManager {
 
   /**
-   * Constructs a new DropaiPreprocessorManager object.
+   * Constructs a new DropaiTokenizerManager object.
    *
    * @param \Traversable $namespaces
    *   An object that implements \Traversable which contains the root paths
@@ -28,14 +28,14 @@ class DropaiPreprocessorManager extends DefaultPluginManager {
     ModuleHandlerInterface $module_handler
   ) {
     parent::__construct(
-      'Plugin/DropaiPreprocessor',
+      'Plugin/DropaiTokenizer',
       $namespaces,
       $module_handler,
-      'Drupal\dropai\Plugin\DropaiPreprocessorInterface',
-      'Drupal\dropai\Annotation\DropaiPreprocessor'
+      'Drupal\dropai\Plugin\DropaiTokenizerInterface',
+      'Drupal\dropai\Annotation\DropaiTokenizer'
     );
-    $this->alterInfo('dropai_preprocessor_info');
-    $this->setCacheBackend($cache_backend, 'dropai_preprocessor_plugins');
+    $this->alterInfo('dropai_tokenizer_info');
+    $this->setCacheBackend($cache_backend, 'dropai_tokenizer_plugins');
   }
 
   /**
