@@ -256,7 +256,7 @@ class EntityInspectForm extends FormBase {
       '#step' => 1,
       '#states' => [
         'invisible' => [
-          ':input[name="chunking"]' => ['value' => 'none'],
+          ':input[name="chunking_plugin"]' => ['value' => 'none'],
         ],
       ],
       '#ajax' => [
@@ -273,7 +273,7 @@ class EntityInspectForm extends FormBase {
       '#step' => 1,
       '#states' => [
         'visible' => [
-          ':input[name="chunking"]' => ['value' => 'window'],
+          ':input[name="chunking_plugin"]' => ['value' => 'window'],
         ],
       ],
       '#ajax' => [
