@@ -11,3 +11,7 @@ services:
     arguments: ['@entity_type.manager']
     tags:
       - { name: event_subscriber }
+  # Manage processor plugins.
+  plugin.manager.dropai_preprocessor:
+    class: Drupal\dropai\Plugin\DropaiPreprocessorManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']

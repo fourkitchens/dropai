@@ -2,7 +2,6 @@
 
 namespace Drupal\dropai\Form;
 
-use Drupal\Component\Render\HtmlEscapedText;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
@@ -12,16 +11,22 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\RendererInterface;
-use Html2Text\Html2Text;
 use Yethee\Tiktoken\EncoderProvider;
-use League\HTMLToMarkdown\HtmlConverter;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\dropai\Plugin\DropaiPreprocessorManager;
 
 /**
  * Implements an entity Inspect form.
  */
 class EntityInspectForm extends FormBase {
+
+  /**
+   * The DropAI Preprocessor plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiPreprocessorManager
+   */
+  protected $dropaiPreprocessorManager;
 
   /**
    * The entity type manager.
@@ -68,6 +73,8 @@ class EntityInspectForm extends FormBase {
   /**
    * Constructs a new Entity Clone form.
    *
+   * @param \Drupal\dropai\Plugin\DropaiPreprocessorManager $dropai_preprocessor_manager
+   *   The DropAI Preprocessor plugin manager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
@@ -82,12 +89,14 @@ class EntityInspectForm extends FormBase {
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function __construct(
+    DropaiPreprocessorManager $dropai_preprocessor_manager,
     EntityTypeManagerInterface $entity_type_manager,
     RouteMatchInterface $route_match,
     MessengerInterface $messenger,
     AccountProxyInterface $currentUser,
     RendererInterface $renderer
   ) {
+    $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $parameter_name = $route_match->getRouteObject()->getOption('_dropai_entity_type_id');
@@ -102,6 +111,7 @@ class EntityInspectForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
+      $container->get('plugin.manager.dropai_preprocessor'),
       $container->get('entity_type.manager'),
       $container->get('current_route_match'),
       $container->get('messenger'),
@@ -123,6 +133,11 @@ class EntityInspectForm extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form['#attached']['library'][] = 'dropai/inspector-form';
 
+    /*
+     * Step 1: Fetch the source content.
+     * The fetch method loads the source content as text. At the moment, this
+     * only supports loading entities based on their rendered markup.
+     */
     $source = $this->fetchContent($this->entity);
     $form['source'] = [
       '#type' => 'container',
@@ -145,6 +160,13 @@ class EntityInspectForm extends FormBase {
       '#code' => $source,
     ];
 
+    /*
+     * Step 2: Preprocess the content.
+     * The preprocessor converts the source content into a format this is more
+     * friendly to the AI ingestion tools. This may include stripping unwanted
+     * markup, trimming whitespace, and converting complex content to readible
+     * equivalents.
+     */
     $form['preprocessor'] = [
       '#type' => 'container',
       '#attributes' => [
@@ -155,24 +177,28 @@ class EntityInspectForm extends FormBase {
     $form['preprocessor']['preprocessor_plugin'] = [
       '#type' => 'select',
       '#title' => 'Preprocessor',
-      '#default_value' => 'plain',
-      '#options' => [
-        'plain' => 'Plain Text',
-        'markdown' => 'Markdown',
-      ],
+      '#default_value' => 'plaintext',
+      '#options' => $this->dropaiPreprocessorManager->getPluginOptions(),
       '#ajax' => [
         'callback' => '::updateFormParts',
         'event' => 'change',
       ],
     ];
-    $preprocessor = $form_state->getValue('preprocessor_plugin', 'plain');
-    $processed = $this->preprocess($source, $preprocessor);
+    $preprocessor = $form_state->getValue('preprocessor_plugin', 'plaintext');
+    $plugin = $this->dropaiPreprocessorManager->createInstance($preprocessor);
+    $processed = $plugin->preprocess($source);
     $form['preprocessor']['source_processed'] = [
       '#theme' => 'code_block',
       '#language' => 'markdown',
       '#code' => $processed,
     ];
 
+    /*
+     * Step 3: Tokenize the content.
+     * The tokenizer tool calculates the content size in tokens. This is
+     * important as AI models have different limits on total token size. This
+     * can also inform content owners of how their content impacts API costs.
+     */
     $form['tokenizer'] = [
       '#type' => 'container',
       '#attributes' => [
@@ -223,6 +249,11 @@ class EntityInspectForm extends FormBase {
       '#code' => json_encode($tokens),
     ];
 
+    /*
+     * Step 4: Chunking the content.
+     * A single piece of content can be broken into smaller chunks to influence
+     * how the page is surfaced in vector search results.
+     */
     $form['chunking'] = [
       '#type' => 'container',
       '#attributes' => [
@@ -300,6 +331,11 @@ class EntityInspectForm extends FormBase {
       '#value' => implode('|', $chunks),
     ];
 
+    /*
+     * Step 5: Generating embeddings.
+     * TBD. Considering using OpenAI API and Hugging Face Transformers Python.
+     */
+
     return $form;
   }
 
@@ -343,21 +379,6 @@ class EntityInspectForm extends FormBase {
     $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
     $renderArray = $view_builder->view($entity, 'default');
     return $this->renderer->render($renderArray)->__toString();
-  }
-
-  public function preprocess($source, $preprocessor) {
-    if ($preprocessor == 'markdown') {
-      $converter = new HtmlConverter(['strip_tags' => true]);
-      $transformed = $converter->convert($source);
-    }
-    else {
-      $html = new Html2Text($source, ['width' => 0]);
-      $transformed = $html->getText();
-    }
-    // Clean up the text by removing extra whitespace.
-    $clean = preg_replace("/[\r\n]+/", "\n", $transformed);
-    $clean = trim($clean);
-    return $clean;
   }
 
   public function tokenize($processed, $model) {
