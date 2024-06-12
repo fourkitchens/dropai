@@ -11,3 +11,11 @@ services:
     arguments: ['@entity_type.manager']
     tags:
       - { name: event_subscriber }
+  # Define a service to build a Factory to the PDF Reader.
+  dropai.pdf_reader.factory:
+    class: Drupal\dropai\Service\PdfReaderFactory
+  # Define a service for media content access.
+  dropai.pdf_reader.access_check.pdf_content:
+    class: Drupal\dropai\Access\PdfContentAccessCheck
+    tags:
+      - { name: access_check, applies_to: _pdf_reader_access_check }

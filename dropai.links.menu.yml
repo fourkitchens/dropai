@@ -4,3 +4,10 @@ dropai.admin:
   parent: system.admin_config
   title: DropAI
   weight: -10
+# Add custom menu for PDF Reader settings.
+dropai.admin.pdf_reader:
+  route_name: dropai.admin.pdf
+  title: 'PDF Reader Settings'
+  description: 'Configure the PDF library used for conversion.'
+  parent: dropai.admin
+  weight: -5

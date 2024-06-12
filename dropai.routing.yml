@@ -6,3 +6,22 @@ dropai.admin:
     _title: 'DropAI Admin Settings'
   requirements:
     _permission: 'administer dropai'
+
+# Create top-level admin page for AI Engine.
+dropai.admin.pdf:
+  path: '/admin/config/dropai/pdf'
+  defaults:
+    _form: '\Drupal\dropai\Form\PdfReaderSettingsForm'
+    _title: 'PDF Reader Settings'
+  requirements:
+    _permission: 'administer dropai'
+
+# Create a path to render a PDF file.
+media.pdf_reader.content:
+  path: '/media/{media}/content'
+  defaults:
+    _controller: '\Drupal\dropai\Controller\PdfReaderController::content'
+    _title: 'PDF Content'
+  requirements:
+    _pdf_reader_access_check: 'TRUE'
+    media: \d+

@@ -2,3 +2,11 @@
 dropai.inspect:
   deriver: 'Drupal\dropai\Plugin\Derivative\DynamicLocalTasks'
   weight: 100
+# Define the Content page on the tab.
+media.pdf_reader.content_tab:
+  route_name: media.pdf_reader.content
+  title: 'Content'
+  base_route: entity.media.canonical
+  weight: 100
+  requirements:
+    _custom_access: 'dropai.pdf_reader.access_check.pdf_content'
