@@ -2,6 +2,7 @@
 
 namespace Drupal\dropai\Form;
 
+use Drupal\Component\Render\HtmlEscapedText;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
@@ -120,22 +121,40 @@ class EntityInspectForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    // TODO: interface for picking entities and content types.  maybe display modes?
-    // Todo: exclude from index rules.
-    // /bulk actions
-    // upsert and delete
-    // batch, queue, and override button
-    $source = $this->processContentBody($this->entity);
-    $form['source_rendered'] = [
-      '#type' => 'textarea',
-      '#title' => 'Rendered Source',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => $source,
+    $form['#attached']['library'][] = 'dropai/inspector-form';
+
+    $source = $this->fetchContent($this->entity);
+    $form['source'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'source-wrapper',
+        'class' => 'section-grid',
+      ],
     ];
-    $form['cleaner'] = [
+    $form['source']['source_plugin'] = [
       '#type' => 'select',
-      '#title' => 'Preprocessing',
+      '#title' => 'Source Plugin',
+      '#default_value' => 'entity',
+      '#options' => [
+        'entity' => 'Entity',
+      ],
+    ];
+    $form['source']['source_raw'] = [
+      '#theme' => 'code_block',
+      '#language' => 'xml',
+      '#code' => $source,
+    ];
+
+    $form['preprocessor'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'preprocessor-wrapper',
+        'class' => 'section-grid',
+      ],
+    ];
+    $form['preprocessor']['preprocessor_plugin'] = [
+      '#type' => 'select',
+      '#title' => 'Preprocessor',
       '#default_value' => 'plain',
       '#options' => [
         'plain' => 'Plain Text',
@@ -146,37 +165,25 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
+    $preprocessor = $form_state->getValue('preprocessor_plugin', 'plain');
+    $processed = $this->preprocess($source, $preprocessor);
+    $form['preprocessor']['source_processed'] = [
+      '#theme' => 'code_block',
+      '#language' => 'markdown',
+      '#code' => $processed,
+    ];
 
-    $original = $source->__toString();
-    $cleaner = $form_state->getValue('cleaner', 'plain');
-    if ($cleaner == 'markdown') {
-      $converter = new HtmlConverter(['strip_tags' => true]);
-      $transformed = $converter->convert($original);
-    }
-    else {
-      $html = new Html2Text($original, ['width' => 0]);
-      $transformed = $html->getText();
-    }
-    // Clean up the text by removing extra whitespace.
-    $clean = preg_replace("/[\r\n]+/", "\n", $transformed);
-    $clean = trim($clean);
-
-    $form['cleaner_wrapper'] = [
+    $form['tokenizer'] = [
       '#type' => 'container',
-      '#attributes' => ['id' => 'cleaner-wrapper'],
+      '#attributes' => [
+        'id' => 'tokenizer-wrapper',
+        'class' => 'section-grid',
+      ],
     ];
-    $form['cleaner_wrapper']['source_clean'] = [
-      '#type' => 'textarea',
-      '#title' => 'Plain Text Source',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => $clean,
+    $form['tokenizer']['controls'] = [
+      '#type' => 'container',
     ];
-
-    // Todo: Add user friendly selection tool.
-    // Todo: Add Llama tokenizer so it's not all OpenAI
-    // https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-    $form['model'] = [
+    $form['tokenizer']['controls']['tokenizer_model'] = [
       '#type' => 'select',
       '#title' => 'Model',
       '#default_value' => 'gpt-3.5-turbo-0301',
@@ -191,44 +198,42 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-
-    $model = $form_state->getValue('model', 'gpt-3.5-turbo-0301');
-    $provider = new EncoderProvider();
-    $encoder = $provider->getForModel($model);
-    $tokens = $encoder->encode($clean);
-    // Wrap the token-related fields in a div for AJAX updating.
-    $form['token_count_wrapper'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'token-count-wrapper'],
-    ];
-    $form['token_count_wrapper']['char_count'] = [
+    $model = $form_state->getValue('tokenizer_model', 'gpt-3.5-turbo-0301');
+    $tokens = $this->tokenize($processed, $model);
+    $form['tokenizer']['controls']['char_count'] = [
       '#type' => 'textfield',
       '#title' => 'Characters',
       '#disabled' => TRUE,
-      '#value' => strlen($clean),
+      '#size' => 23,
+      '#value' => strlen($processed),
     ];
-    $form['token_count_wrapper']['token_count'] = [
+    $form['tokenizer']['controls']['token_count'] = [
       '#type' => 'textfield',
       '#title' => 'Tokens',
       '#disabled' => TRUE,
+      '#size' => 23,
       '#value' => count($tokens),
     ];
-    $form['token_count_wrapper']['tokens'] = [
-      '#type' => 'textarea',
-      '#title' => 'Tokens',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => '[' . implode(', ', $tokens) . ']',
+    $form['tokenizer']['output'] = [
+      '#type' => 'container',
     ];
-    $form['token_count_wrapper']['tokens_textual'] = [
-      '#type' => 'textarea',
-      '#title' => 'Tokens as text',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => implode('|', $encoder->decode2($tokens)),
+    $form['tokenizer']['output'] ['tokens'] = [
+      '#theme' => 'code_block',
+      '#language' => 'php',
+      '#code' => json_encode($tokens),
     ];
 
     $form['chunking'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'chunking-wrapper',
+        'class' => 'section-grid',
+      ],
+    ];
+    $form['chunking']['controls'] = [
+      '#type' => 'container',
+    ];
+    $form['chunking']['controls']['chunking_plugin'] = [
       '#type' => 'select',
       '#title' => 'Chunking Strategy',
       '#default_value' => 'fixed',
@@ -243,7 +248,7 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-    $form['chunk_max_size'] = [
+    $form['chunking']['controls']['chunk_max_size'] = [
       '#type' => 'number',
       '#title' => 'Chunk max size (character)',
       '#default_value' => 500,
@@ -259,7 +264,7 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-    $form['chunk_overlap'] = [
+    $form['chunking']['controls']['chunk_overlap'] = [
       '#type' => 'number',
       '#title' => 'Chunk overlap (%)',
       '#default_value' => 20,
@@ -276,78 +281,18 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-
-    $maxChunkSize = $form_state->getValue('chunk_max_size', '500');
-    $strategy = $form_state->getValue('chunking', 'fixed');
-    if ($strategy == 'fixed') {
-      $chunks = explode("%%%", wordwrap($clean, $maxChunkSize, "%%%", false));
-    }
-    else if ($strategy == 'paragraph') {
-      $paragraphs = explode("\n", $clean);
-      $chunks = [];
-      foreach ($paragraphs as $paragraph) {
-        if (empty(trim($paragraph))) continue;
-        $length = strlen($paragraph);
-        for ($i = 0; $i < $length; $i += $maxChunkSize) {
-            $chunks[] = substr($paragraph, $i, $maxChunkSize);
-        }
-      }
-    }
-    else if ($strategy == 'window') {
-      // TODO: Review this code. Something seems off with the first chunks.
-      $overlap = $form_state->getValue('chunk_overlap', '20') * .01;
-      // Calculate the step size based on the overlap percentage
-      $stepSize = (int)($maxChunkSize * (1 - $overlap));
-
-      // Array to hold chunks
-      $chunks = [];
-
-      // Split text into words
-      $words = preg_split('/\s+/', $clean);
-
-      // Create the initial chunk
-      $currentChunk = [];
-      $currentSize = 0;
-
-      foreach ($words as $word) {
-        $wordLength = strlen($word) + 1; // Adding 1 for the space or punctuation
-        if ($currentSize + $wordLength > $maxChunkSize) {
-            // If adding the next word exceeds the max chunk size, finalize the current chunk
-            $chunks[] = implode(' ', $currentChunk);
-            // Create the new chunk with overlap
-            $overlapWords = array_slice($currentChunk, -($maxChunkSize - $stepSize));
-            $currentChunk = $overlapWords;
-            $currentSize = array_sum(array_map('strlen', $overlapWords)) + count($overlapWords) - 1;
-            // Add the current word to the new chunk
-            $currentChunk[] = $word;
-            $currentSize += $wordLength;
-        }
-        else {
-            // Add the word to the current chunk
-            $currentChunk[] = $word;
-            $currentSize += $wordLength;
-        }
-      }
-      // Add the final chunk if it contains any words
-      if (!empty($currentChunk)) {
-        $chunks[] = implode(' ', $currentChunk);
-      }
-    }
-    else {
-      $chunks = [$clean];
-    }
-
-    $form['chunks_wrapper'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'chunks-wrapper'],
-    ];
-    $form['chunks_wrapper']['count'] = [
+    $strategy = $form_state->getValue('chunking_plugin', 'fixed');
+    $chunkMaxSize = $form_state->getValue('chunk_max_size', '500');
+    $chunkOverlap = $form_state->getValue('chunk_overlap', '500') * .01;
+    $chunks = $this->chunk($processed, $strategy, $chunkMaxSize, $chunkOverlap);
+    $form['chunking']['controls']['count'] = [
       '#type' => 'textfield',
       '#title' => 'Chunk count',
       '#disabled' => TRUE,
+      '#size' => 23,
       '#value' => count($chunks),
     ];
-    $form['chunks_wrapper']['text'] = [
+    $form['chunking']['preview'] = [
       '#type' => 'textarea',
       '#title' => 'Text chunks',
       '#disabled' => TRUE,
@@ -377,9 +322,10 @@ class EntityInspectForm extends FormBase {
     $response = new AjaxResponse();
 
     // Rebuild the cleaner wrapper.
-    $response->addCommand(new ReplaceCommand('#cleaner-wrapper', $form['cleaner_wrapper']));
-    $response->addCommand(new ReplaceCommand('#token-count-wrapper', $form['token_count_wrapper']));
-    $response->addCommand(new ReplaceCommand('#chunks-wrapper', $form['chunks_wrapper']));
+    $response->addCommand(new ReplaceCommand('#source-wrapper', $form['source']));
+    $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
+    $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
+    $response->addCommand(new ReplaceCommand('#chunking-wrapper', $form['chunking']));
     return $response;
   }
 
@@ -393,10 +339,91 @@ class EntityInspectForm extends FormBase {
     return $this->entity;
   }
 
-  protected function processContentBody(EntityInterface $entity) {
+  public function fetchContent(EntityInterface $entity) {
     $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
     $renderArray = $view_builder->view($entity, 'default');
-    return $this->renderer->render($renderArray);
+    return $this->renderer->render($renderArray)->__toString();
+  }
+
+  public function preprocess($source, $preprocessor) {
+    if ($preprocessor == 'markdown') {
+      $converter = new HtmlConverter(['strip_tags' => true]);
+      $transformed = $converter->convert($source);
+    }
+    else {
+      $html = new Html2Text($source, ['width' => 0]);
+      $transformed = $html->getText();
+    }
+    // Clean up the text by removing extra whitespace.
+    $clean = preg_replace("/[\r\n]+/", "\n", $transformed);
+    $clean = trim($clean);
+    return $clean;
+  }
+
+  public function tokenize($processed, $model) {
+    $provider = new EncoderProvider();
+    $encoder = $provider->getForModel($model);
+    return $encoder->encode($processed);
+  }
+
+  public function chunk($processed, $strategy, $chunkMaxSize, $chunkOverlap) {
+    $chunks = [];
+    if ($strategy == 'fixed') {
+      $chunks = explode("%%%", wordwrap($processed, $chunkMaxSize, "%%%", false));
+    }
+    else if ($strategy == 'paragraph') {
+      $paragraphs = explode("\n", $processed);
+      $chunks = [];
+      foreach ($paragraphs as $paragraph) {
+        if (empty(trim($paragraph))) continue;
+        $length = strlen($paragraph);
+        for ($i = 0; $i < $length; $i += $chunkMaxSize) {
+            $chunks[] = substr($paragraph, $i, $chunkMaxSize);
+        }
+      }
+    }
+    else if ($strategy == 'window') {
+      // Calculate the step size based on the overlap percentage
+      $stepSize = (int)($chunkMaxSize * (1 - $chunkOverlap));
+
+      // Array to hold chunks
+      $chunks = [];
+
+      // Split text into words
+      $words = preg_split('/\s+/', $processed);
+
+      // Create the initial chunk
+      $currentChunk = [];
+      $currentSize = 0;
+
+      foreach ($words as $word) {
+        $wordLength = strlen($word) + 1; // Adding 1 for the space or punctuation
+        if ($currentSize + $wordLength > $chunkMaxSize) {
+            // If adding the next word exceeds the max chunk size, finalize the current chunk
+            $chunks[] = implode(' ', $currentChunk);
+            // Create the new chunk with overlap
+            $overlapWords = array_slice($currentChunk, -($chunkMaxSize - $stepSize));
+            $currentChunk = $overlapWords;
+            $currentSize = array_sum(array_map('strlen', $overlapWords)) + count($overlapWords) - 1;
+            // Add the current word to the new chunk
+            $currentChunk[] = $word;
+            $currentSize += $wordLength;
+        }
+        else {
+            // Add the word to the current chunk
+            $currentChunk[] = $word;
+            $currentSize += $wordLength;
+        }
+      }
+      // Add the final chunk if it contains any words
+      if (!empty($currentChunk)) {
+        $chunks[] = implode(' ', $currentChunk);
+      }
+    }
+    else {
+      $chunks = [$processed];
+    }
+    return $chunks;
   }
 
 }

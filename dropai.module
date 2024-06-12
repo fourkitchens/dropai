@@ -38,3 +38,17 @@ function dropai_entity_update(EntityInterface $entity) {
 function dropai_entity_delete(EntityInterface $entity) {
   \Drupal::service('dropai.entity_update')->removeDocument($entity);
 }
+
+/**
+ * Implements hook_theme().
+ */
+function dropai_theme() {
+  return [
+    'code_block' => [
+      'variables' => [
+        'language' => 'plaintext',
+        'code' => NULL,
+      ],
+    ],
+  ];
+}

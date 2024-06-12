@@ -1,0 +1,15 @@
+inspector-form:
+  version: 1.x
+  css:
+    theme:
+      css/inspector-form.css: {}
+code-block:
+  version: 1.x
+  js:
+    js/highlight.min.js: {}
+    js/highlight-init.js: {}
+  css:
+    theme:
+      css/github-dark-dimmed.min.css: {}
+  dependencies:
+    - core/drupal
