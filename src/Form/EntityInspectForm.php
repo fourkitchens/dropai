@@ -8,12 +8,12 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\dropai\Plugin\DropaiPreprocessorManager;
+use Drupal\dropai\Plugin\DropaiSplitterManager;
 use Drupal\dropai\Plugin\DropaiTokenizerManager;
 
 /**
@@ -27,6 +27,13 @@ class EntityInspectForm extends FormBase {
    * @var \Drupal\dropai\Plugin\DropaiPreprocessorManager
    */
   protected $dropaiPreprocessorManager;
+
+  /**
+   * The DropAI Splitter plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiSplitterManager
+   */
+  protected $dropaiSplitterManager;
 
   /**
    * The DropAI Tokenizer plugin manager.
@@ -64,13 +71,6 @@ class EntityInspectForm extends FormBase {
   protected $messenger;
 
   /**
-   * The current user.
-   *
-   * @var \Drupal\Core\Session\AccountInterface
-   */
-  protected $currentUser;
-
-  /**
    * The renderer service.
    *
    * @var \Drupal\Core\Render\RendererInterface
@@ -82,6 +82,8 @@ class EntityInspectForm extends FormBase {
    *
    * @param \Drupal\dropai\Plugin\DropaiPreprocessorManager $dropai_preprocessor_manager
    *   The DropAI Preprocessor plugin manager.
+   * @param \Drupal\dropai\Plugin\DropaiSplitterManager $dropai_splitter_manager
+   *   The DropAI Splitter plugin manager.
    * @param \Drupal\dropai\Plugin\DropaiTokenizerManager $dropai_tokenizer_manager
    *   The DropAI Tokenizer plugin manager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
@@ -90,8 +92,6 @@ class EntityInspectForm extends FormBase {
    *   The route match service.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger service.
-   * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
-   *   The current user.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer service.
    *
@@ -99,21 +99,21 @@ class EntityInspectForm extends FormBase {
    */
   public function __construct(
     DropaiPreprocessorManager $dropai_preprocessor_manager,
+    DropaiSplitterManager $dropai_splitter_manager,
     DropaiTokenizerManager $dropai_tokenizer_manager,
     EntityTypeManagerInterface $entity_type_manager,
     RouteMatchInterface $route_match,
     MessengerInterface $messenger,
-    AccountProxyInterface $currentUser,
     RendererInterface $renderer
   ) {
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
+    $this->dropaiSplitterManager = $dropai_splitter_manager;
     $this->dropaiTokenizerManager = $dropai_tokenizer_manager;
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $parameter_name = $route_match->getRouteObject()->getOption('_dropai_entity_type_id');
     $this->entity = $route_match->getParameter($parameter_name);
     $this->entityTypeDefinition = $entity_type_manager->getDefinition($this->entity->getEntityTypeId());
-    $this->currentUser = $currentUser;
     $this->renderer = $renderer;
   }
 
@@ -123,11 +123,11 @@ class EntityInspectForm extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('plugin.manager.dropai_preprocessor'),
+      $container->get('plugin.manager.dropai_splitter'),
       $container->get('plugin.manager.dropai_tokenizer'),
       $container->get('entity_type.manager'),
       $container->get('current_route_match'),
       $container->get('messenger'),
-      $container->get('current_user'),
       $container->get('renderer'),
     );
   }
@@ -269,44 +269,39 @@ class EntityInspectForm extends FormBase {
     ];
 
     /*
-     * Step 4: Chunking the content.
+     * Step 4: Splitting the content.
      * A single piece of content can be broken into smaller chunks to influence
      * how the page is surfaced in vector search results.
      */
-    $form['chunking'] = [
+    $form['splitter'] = [
       '#type' => 'container',
       '#attributes' => [
-        'id' => 'chunking-wrapper',
+        'id' => 'splitter-wrapper',
         'class' => 'section-grid',
       ],
     ];
-    $form['chunking']['controls'] = [
+    $form['splitter']['controls'] = [
       '#type' => 'container',
     ];
-    $form['chunking']['controls']['chunking_plugin'] = [
+    $form['splitter']['controls']['splitter_plugin'] = [
       '#type' => 'select',
-      '#title' => 'Chunking Strategy',
+      '#title' => 'Splitter',
       '#default_value' => 'fixed',
-      '#options' => [
-        'none' => 'None',
-        'fixed' => 'Fixed (preserve words)',
-        'paragraph' => 'Paragraph splitting',
-        'window' => 'Sliding window',
-      ],
+      '#options' => $this->dropaiSplitterManager->getPluginOptions(),
       '#ajax' => [
         'callback' => '::updateFormParts',
         'event' => 'change',
       ],
     ];
-    $form['chunking']['controls']['chunk_max_size'] = [
+    $form['splitter']['controls']['split_max_size'] = [
       '#type' => 'number',
-      '#title' => 'Chunk max size (character)',
+      '#title' => 'Split size (characters)',
       '#default_value' => 500,
       '#min' => 1,
       '#step' => 1,
       '#states' => [
         'invisible' => [
-          ':input[name="chunking_plugin"]' => ['value' => 'none'],
+          ':input[name="splitter_plugin"]' => ['value' => 'none'],
         ],
       ],
       '#ajax' => [
@@ -314,16 +309,16 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-    $form['chunking']['controls']['chunk_overlap'] = [
+    $form['splitter']['controls']['split_overlap'] = [
       '#type' => 'number',
-      '#title' => 'Chunk overlap (%)',
+      '#title' => 'Overlap (%)',
       '#default_value' => 20,
       '#min' => 1,
       '#max' => 100,
       '#step' => 1,
       '#states' => [
         'visible' => [
-          ':input[name="chunking_plugin"]' => ['value' => 'window'],
+          ':input[name="splitter_plugin"]' => ['value' => 'window'],
         ],
       ],
       '#ajax' => [
@@ -331,18 +326,19 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-    $strategy = $form_state->getValue('chunking_plugin', 'fixed');
-    $chunkMaxSize = $form_state->getValue('chunk_max_size', '500');
-    $chunkOverlap = $form_state->getValue('chunk_overlap', '500') * .01;
-    $chunks = $this->chunk($processed, $strategy, $chunkMaxSize, $chunkOverlap);
-    $form['chunking']['controls']['count'] = [
+    $splitter_id = $form_state->getValue('splitter_plugin', 'fixed');
+    $splitMaxSize = $form_state->getValue('split_max_size', '500');
+    $splitOverlap = $form_state->getValue('split_overlap', '500') * .01;
+    $splitter = $this->dropaiSplitterManager->createInstance($splitter_id);
+    $chunks = $splitter->split($processed, maxSize: $splitMaxSize, overlap: $splitOverlap);
+    $form['splitter']['controls']['count'] = [
       '#type' => 'textfield',
       '#title' => 'Chunk count',
       '#disabled' => TRUE,
       '#size' => 23,
       '#value' => count($chunks),
     ];
-    $form['chunking']['preview'] = [
+    $form['splitter']['preview'] = [
       '#type' => 'textarea',
       '#title' => 'Text chunks',
       '#disabled' => TRUE,
@@ -379,84 +375,14 @@ class EntityInspectForm extends FormBase {
     $response->addCommand(new ReplaceCommand('#source-wrapper', $form['source']));
     $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
     $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
-    $response->addCommand(new ReplaceCommand('#chunking-wrapper', $form['chunking']));
+    $response->addCommand(new ReplaceCommand('#splitter-wrapper', $form['splitter']));
     return $response;
-  }
-
-  /**
-   * Gets the entity of this form.
-   *
-   * @return \Drupal\Core\Entity\EntityInterface
-   *   The entity.
-   */
-  public function getEntity() {
-    return $this->entity;
   }
 
   public function fetchContent(EntityInterface $entity) {
     $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
     $renderArray = $view_builder->view($entity, 'default');
     return $this->renderer->render($renderArray)->__toString();
-  }
-
-  public function chunk($processed, $strategy, $chunkMaxSize, $chunkOverlap) {
-    $chunks = [];
-    if ($strategy == 'fixed') {
-      $chunks = explode("%%%", wordwrap($processed, $chunkMaxSize, "%%%", false));
-    }
-    else if ($strategy == 'paragraph') {
-      $paragraphs = explode("\n", $processed);
-      $chunks = [];
-      foreach ($paragraphs as $paragraph) {
-        if (empty(trim($paragraph))) continue;
-        $length = strlen($paragraph);
-        for ($i = 0; $i < $length; $i += $chunkMaxSize) {
-            $chunks[] = substr($paragraph, $i, $chunkMaxSize);
-        }
-      }
-    }
-    else if ($strategy == 'window') {
-      // Calculate the step size based on the overlap percentage
-      $stepSize = (int)($chunkMaxSize * (1 - $chunkOverlap));
-
-      // Array to hold chunks
-      $chunks = [];
-
-      // Split text into words
-      $words = preg_split('/\s+/', $processed);
-
-      // Create the initial chunk
-      $currentChunk = [];
-      $currentSize = 0;
-
-      foreach ($words as $word) {
-        $wordLength = strlen($word) + 1; // Adding 1 for the space or punctuation
-        if ($currentSize + $wordLength > $chunkMaxSize) {
-            // If adding the next word exceeds the max chunk size, finalize the current chunk
-            $chunks[] = implode(' ', $currentChunk);
-            // Create the new chunk with overlap
-            $overlapWords = array_slice($currentChunk, -($chunkMaxSize - $stepSize));
-            $currentChunk = $overlapWords;
-            $currentSize = array_sum(array_map('strlen', $overlapWords)) + count($overlapWords) - 1;
-            // Add the current word to the new chunk
-            $currentChunk[] = $word;
-            $currentSize += $wordLength;
-        }
-        else {
-            // Add the word to the current chunk
-            $currentChunk[] = $word;
-            $currentSize += $wordLength;
-        }
-      }
-      // Add the final chunk if it contains any words
-      if (!empty($currentChunk)) {
-        $chunks[] = implode(' ', $currentChunk);
-      }
-    }
-    else {
-      $chunks = [$processed];
-    }
-    return $chunks;
   }
 
 }

@@ -22,6 +22,8 @@ abstract class DropaiPreprocessorBase extends PluginBase implements DropaiPrepro
    */
   public function trim(string $text): string {
     $text = preg_replace("/[\r\n]+/", "\n", $text);
+    // Replace non-breaking spaces with regular spaces
+    $text = str_replace("\u{A0}", " ", $text);
     $text = trim($text);
     return $text;
   }

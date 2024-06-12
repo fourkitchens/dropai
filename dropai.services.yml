@@ -15,6 +15,10 @@ services:
   plugin.manager.dropai_preprocessor:
     class: Drupal\dropai\Plugin\DropaiPreprocessorManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage splitter plugins.
+  plugin.manager.dropai_splitter:
+    class: Drupal\dropai\Plugin\DropaiSplitterManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   # Manage tokenizer plugins.
   plugin.manager.dropai_tokenizer:
     class: Drupal\dropai\Plugin\DropaiTokenizerManager
