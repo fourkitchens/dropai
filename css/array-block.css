@@ -1,0 +1,29 @@
+.array-block {
+  margin: 0.5em 0;
+  padding: 1em;
+  color: #adbac7;
+  background: #22272e;
+  max-height: 350px;
+  word-break: break-word;
+  overflow-y: scroll;
+}
+.array-block span {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 1.2em;
+}
+.array-block span:nth-child(5n) {
+  background: #68de7a66;
+}
+.array-block span:nth-child(5n+1) {
+  background: #f4ac3666;
+}
+.array-block span:nth-child(5n+2) {
+  background: #ef414666;
+}
+.array-block span:nth-child(5n+3) {
+  background: #27b5ea66;
+}
+.array-block span:nth-child(5n+4) {
+  background: #6b40d84d;
+}
