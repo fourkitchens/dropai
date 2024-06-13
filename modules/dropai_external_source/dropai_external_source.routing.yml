@@ -1,0 +1,7 @@
+dropai_external_source.admin_form:
+  path: '/admin/config/dropai/external_source'
+  defaults:
+    _form: '\Drupal\dropai_external_source\Form\DropaiExternalSourceAdminForm'
+    _title: 'DropAI External Source Settings'
+  requirements:
+    _permission: 'manage dropai external sources'

@@ -1,0 +1,7 @@
+name: 'DropAI External Source'
+type: module
+description: 'A module for managing DropAI external sources.'
+package: DropAI
+core_version_requirement: ^10 || ^11
+dependencies:
+  - dropai:dropai
