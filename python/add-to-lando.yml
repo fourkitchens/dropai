@@ -1,0 +1,15 @@
+tooling:
+  pip:
+    service: python
+  python:
+    service: python
+services:
+  python:
+    type: python:3.9
+    build:
+      - 'pip install -r python/requirements.txt'
+    run:
+      - python python/app.py
+proxy:
+  python:
+    - python.lndo.site:5001
