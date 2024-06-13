@@ -1,0 +1,16 @@
+{
+    "name": "fourkitchens/dropai_external_source",
+    "description": "External source submodule for the DropAI module",
+    "type": "drupal-module",
+    "authors": [
+        {
+            "name": "cbfannin",
+            "email": "charles@fourkitchens.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+      "symfony/css-selector": "^7.1",
+      "symfony/dom-crawler": "^7.1"
+    }
+}
