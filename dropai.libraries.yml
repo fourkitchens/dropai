@@ -13,3 +13,8 @@ code-block:
       css/github-dark-dimmed.min.css: {}
   dependencies:
     - core/drupal
+array-block:
+  version: 1.x
+  css:
+    theme:
+      css/array-block.css: {}

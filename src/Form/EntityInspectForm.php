@@ -339,11 +339,8 @@ class EntityInspectForm extends FormBase {
       '#value' => count($chunks),
     ];
     $form['splitter']['preview'] = [
-      '#type' => 'textarea',
-      '#title' => 'Text chunks',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => implode('|', $chunks),
+      '#theme' => 'array_block',
+      '#items' => $chunks,
     ];
 
     /*

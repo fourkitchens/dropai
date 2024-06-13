@@ -50,5 +50,10 @@ function dropai_theme() {
         'code' => NULL,
       ],
     ],
+    'array_block' => [
+      'variables' => [
+        'items' => [],
+      ],
+    ],
   ];
 }
