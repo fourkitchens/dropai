@@ -6,7 +6,7 @@ use Drupal\dropai\Plugin\DropaiPreprocessorBase;
 use Html2Text\Html2Text;
 
 /**
- * Provides a sample DropAI Preprocessor plugin.
+ * Provides a DropAI Preprocessor plugin to convert HTML to plain text.
  *
  * @DropaiPreprocessor(
  *   id = "plaintext",
