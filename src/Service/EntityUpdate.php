@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Http\ClientFactory;
 use Drupal\Core\Logger\LoggerChannelInterface;
+use MongoDB\Database;
 
 /**
  * Service for updating the vector database as content is updated.
@@ -27,6 +28,13 @@ class EntityUpdate {
   protected $logger;
 
   /**
+   * The database service.
+   *
+   * @var \MongoDB\Database
+   */
+  protected Database $database;
+
+  /**
    * Constructs a new EntityUpdate object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -37,9 +45,11 @@ class EntityUpdate {
   public function __construct(
     ConfigFactoryInterface $configFactory,
     LoggerChannelInterface $logger,
+    Database $database
   ) {
     $this->configFactory = $configFactory;
     $this->logger = $logger;
+    $this->database = $database;
   }
 
   /**
@@ -53,6 +63,13 @@ class EntityUpdate {
    *   A content entity in Drupal.
    */
   public function upsertDocument(EntityInterface $entity) {
+
+    $this->database->selectCollection('documents')->updateOne(
+      ['_id' => $entity->id()],
+      ['$set' => ['title' => $entity->label()]],
+      ['upsert' => TRUE]);
+
+
     $this->logger->notice(
       'Upserted @type @id in vector database.',
       ['@type' => $entity->getEntityTypeId(), '@id' => $entity->id()]
