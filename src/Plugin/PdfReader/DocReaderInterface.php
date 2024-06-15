@@ -2,6 +2,6 @@
 
 namespace Drupal\dropai\Plugin\PdfReader;
 
-interface PdfReaderInterface {
+interface DocReaderInterface {
   public function getText($filePath);
 }

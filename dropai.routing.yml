@@ -20,8 +20,8 @@ dropai.admin.pdf:
 media.pdf_reader.content:
   path: '/media/{media}/content'
   defaults:
-    _controller: '\Drupal\dropai\Controller\PdfReaderController::content'
-    _title: 'PDF Content'
+    _controller: '\Drupal\dropai\Controller\DocReaderController::content'
+    _title: 'Document Content'
   requirements:
     _pdf_reader_access_check: 'TRUE'
     media: \d+

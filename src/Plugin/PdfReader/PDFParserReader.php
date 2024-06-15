@@ -4,13 +4,18 @@ namespace Drupal\dropai\Plugin\PdfReader;
 
 use Smalot\PdfParser\Parser;
 
-class PDFParserReader implements PdfReaderInterface {
+class PDFParserReader implements DocReaderInterface {
 
   public function getText($filePath) {
+    $content = '';
     $parser = new Parser();
-    $pdf = $parser->parseFile($filePath);
 
-    return $pdf->getText();
+    try {
+      $pdfDoc = $parser->parseFile($filePath);
+      $content = $pdfDoc->getText();
+    } catch (Exception $e) { }
+
+    return $content;
   }
 
 }

@@ -12,8 +12,9 @@ services:
     tags:
       - { name: event_subscriber }
   # Define a service to build a Factory to the PDF Reader.
-  dropai.pdf_reader.factory:
-    class: Drupal\dropai\Service\PdfReaderFactory
+  dropai.document_reader.factory:
+    class: Drupal\dropai\Service\DocReaderFactory
+    arguments: ['@config.factory']
   # Define a service for media content access.
   dropai.pdf_reader.access_check.pdf_content:
     class: Drupal\dropai\Access\PdfContentAccessCheck
