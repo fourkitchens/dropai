@@ -8,19 +8,39 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\RendererInterface;
-use Html2Text\Html2Text;
-use Yethee\Tiktoken\EncoderProvider;
-use League\HTMLToMarkdown\HtmlConverter;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\dropai\Plugin\DropaiPreprocessorManager;
+use Drupal\dropai\Plugin\DropaiSplitterManager;
+use Drupal\dropai\Plugin\DropaiTokenizerManager;
 
 /**
  * Implements an entity Inspect form.
  */
 class EntityInspectForm extends FormBase {
+
+  /**
+   * The DropAI Preprocessor plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiPreprocessorManager
+   */
+  protected $dropaiPreprocessorManager;
+
+  /**
+   * The DropAI Splitter plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiSplitterManager
+   */
+  protected $dropaiSplitterManager;
+
+  /**
+   * The DropAI Tokenizer plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiTokenizerManager
+   */
+  protected $dropaiTokenizerManager;
 
   /**
    * The entity type manager.
@@ -51,13 +71,6 @@ class EntityInspectForm extends FormBase {
   protected $messenger;
 
   /**
-   * The current user.
-   *
-   * @var \Drupal\Core\Session\AccountInterface
-   */
-  protected $currentUser;
-
-  /**
    * The renderer service.
    *
    * @var \Drupal\Core\Render\RendererInterface
@@ -67,32 +80,40 @@ class EntityInspectForm extends FormBase {
   /**
    * Constructs a new Entity Clone form.
    *
+   * @param \Drupal\dropai\Plugin\DropaiPreprocessorManager $dropai_preprocessor_manager
+   *   The DropAI Preprocessor plugin manager.
+   * @param \Drupal\dropai\Plugin\DropaiSplitterManager $dropai_splitter_manager
+   *   The DropAI Splitter plugin manager.
+   * @param \Drupal\dropai\Plugin\DropaiTokenizerManager $dropai_tokenizer_manager
+   *   The DropAI Tokenizer plugin manager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
    *   The route match service.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger service.
-   * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
-   *   The current user.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer service.
    *
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function __construct(
+    DropaiPreprocessorManager $dropai_preprocessor_manager,
+    DropaiSplitterManager $dropai_splitter_manager,
+    DropaiTokenizerManager $dropai_tokenizer_manager,
     EntityTypeManagerInterface $entity_type_manager,
     RouteMatchInterface $route_match,
     MessengerInterface $messenger,
-    AccountProxyInterface $currentUser,
     RendererInterface $renderer
   ) {
+    $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
+    $this->dropaiSplitterManager = $dropai_splitter_manager;
+    $this->dropaiTokenizerManager = $dropai_tokenizer_manager;
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $parameter_name = $route_match->getRouteObject()->getOption('_dropai_entity_type_id');
     $this->entity = $route_match->getParameter($parameter_name);
     $this->entityTypeDefinition = $entity_type_manager->getDefinition($this->entity->getEntityTypeId());
-    $this->currentUser = $currentUser;
     $this->renderer = $renderer;
   }
 
@@ -101,10 +122,12 @@ class EntityInspectForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
+      $container->get('plugin.manager.dropai_preprocessor'),
+      $container->get('plugin.manager.dropai_splitter'),
+      $container->get('plugin.manager.dropai_tokenizer'),
       $container->get('entity_type.manager'),
       $container->get('current_route_match'),
       $container->get('messenger'),
-      $container->get('current_user'),
       $container->get('renderer'),
     );
   }
@@ -120,138 +143,165 @@ class EntityInspectForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    // TODO: interface for picking entities and content types.  maybe display modes?
-    // Todo: exclude from index rules.
-    // /bulk actions
-    // upsert and delete
-    // batch, queue, and override button
-    $source = $this->processContentBody($this->entity);
-    $form['source_rendered'] = [
-      '#type' => 'textarea',
-      '#title' => 'Rendered Source',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => $source,
-    ];
-    $form['cleaner'] = [
-      '#type' => 'select',
-      '#title' => 'Preprocessing',
-      '#default_value' => 'plain',
-      '#options' => [
-        'plain' => 'Plain Text',
-        'markdown' => 'Markdown',
+    $form['#attached']['library'][] = 'dropai/inspector-form';
+
+    /*
+     * Step 1: Fetch the source content.
+     * The fetch method loads the source content as text. At the moment, this
+     * only supports loading entities based on their rendered markup.
+     */
+    $source = $this->fetchContent($this->entity);
+    $form['source'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'source-wrapper',
+        'class' => 'section-grid',
       ],
+    ];
+    $form['source']['source_plugin'] = [
+      '#type' => 'select',
+      '#title' => 'Source Plugin',
+      '#default_value' => 'entity',
+      '#options' => [
+        'entity' => 'Entity',
+      ],
+    ];
+    $form['source']['source_raw'] = [
+      '#theme' => 'code_block',
+      '#language' => 'xml',
+      '#code' => $source,
+    ];
+
+    /*
+     * Step 2: Preprocess the content.
+     * The preprocessor converts the source content into a format this is more
+     * friendly to the AI ingestion tools. This may include stripping unwanted
+     * markup, trimming whitespace, and converting complex content to readible
+     * equivalents.
+     */
+    $form['preprocessor'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'preprocessor-wrapper',
+        'class' => 'section-grid',
+      ],
+    ];
+    $form['preprocessor']['preprocessor_plugin'] = [
+      '#type' => 'select',
+      '#title' => 'Preprocessor',
+      '#default_value' => 'plaintext',
+      '#options' => $this->dropaiPreprocessorManager->getPluginOptions(),
       '#ajax' => [
         'callback' => '::updateFormParts',
         'event' => 'change',
       ],
     ];
+    $preprocessor = $form_state->getValue('preprocessor_plugin', 'plaintext');
+    $plugin = $this->dropaiPreprocessorManager->createInstance($preprocessor);
+    $processed = $plugin->preprocess($source);
+    $form['preprocessor']['source_processed'] = [
+      '#theme' => 'code_block',
+      '#language' => 'markdown',
+      '#code' => $processed,
+    ];
 
-    $original = $source->__toString();
-    $cleaner = $form_state->getValue('cleaner', 'plain');
-    if ($cleaner == 'markdown') {
-      $converter = new HtmlConverter(['strip_tags' => true]);
-      $transformed = $converter->convert($original);
-    }
-    else {
-      $html = new Html2Text($original, ['width' => 0]);
-      $transformed = $html->getText();
-    }
-    // Clean up the text by removing extra whitespace.
-    $clean = preg_replace("/[\r\n]+/", "\n", $transformed);
-    $clean = trim($clean);
-
-    $form['cleaner_wrapper'] = [
+    /*
+     * Step 3: Tokenize the content.
+     * The tokenizer tool calculates the content size in tokens. This is
+     * important as AI models have different limits on total token size. This
+     * can also inform content owners of how their content impacts API costs.
+     */
+    $form['tokenizer'] = [
       '#type' => 'container',
-      '#attributes' => ['id' => 'cleaner-wrapper'],
+      '#attributes' => [
+        'id' => 'tokenizer-wrapper',
+        'class' => 'section-grid',
+      ],
     ];
-    $form['cleaner_wrapper']['source_clean'] = [
-      '#type' => 'textarea',
-      '#title' => 'Plain Text Source',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => $clean,
+    $form['tokenizer']['controls'] = [
+      '#type' => 'container',
     ];
-
-    // Todo: Add user friendly selection tool.
-    // Todo: Add Llama tokenizer so it's not all OpenAI
-    // https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-    $form['model'] = [
+    $form['tokenizer']['controls']['tokenizer_plugin'] = [
+      '#type' => 'select',
+      '#title' => 'Tokenizer',
+      '#default_value' => 'tiktoken',
+      '#options' => $this->dropaiTokenizerManager->getPluginOptions(),
+      '#ajax' => [
+        'callback' => '::updateFormParts',
+        'event' => 'change',
+      ],
+    ];
+    $tokenizer_id = $form_state->getValue('tokenizer_plugin', 'tiktoken');
+    $tokenizer = $this->dropaiTokenizerManager->createInstance($tokenizer_id);
+    $form['tokenizer']['controls']['tokenizer_model'] = [
       '#type' => 'select',
       '#title' => 'Model',
-      '#default_value' => 'gpt-3.5-turbo-0301',
-      '#options' => [
-        'gpt-4o' => 'gpt-4o',
-        'gpt-4' => 'gpt-4',
-        'gpt-3.5-turbo' => 'gpt-3.5-turbo',
-        'text-embedding-ada-002' => 'text-embedding-ada-002',
-      ],
+      '#default_value' => 'gpt-4o',
+      '#options' => $tokenizer->getModels(),
       '#ajax' => [
         'callback' => '::updateFormParts',
         'event' => 'change',
       ],
     ];
-
-    $model = $form_state->getValue('model', 'gpt-3.5-turbo-0301');
-    $provider = new EncoderProvider();
-    $encoder = $provider->getForModel($model);
-    $tokens = $encoder->encode($clean);
-    // Wrap the token-related fields in a div for AJAX updating.
-    $form['token_count_wrapper'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'token-count-wrapper'],
-    ];
-    $form['token_count_wrapper']['char_count'] = [
+    $model = $form_state->getValue('tokenizer_model', 'gpt-4o');
+    $tokens = $tokenizer->tokenize($processed, $model);
+    $form['tokenizer']['controls']['char_count'] = [
       '#type' => 'textfield',
       '#title' => 'Characters',
       '#disabled' => TRUE,
-      '#value' => strlen($clean),
+      '#size' => 23,
+      '#value' => strlen($processed),
     ];
-    $form['token_count_wrapper']['token_count'] = [
+    $form['tokenizer']['controls']['token_count'] = [
       '#type' => 'textfield',
       '#title' => 'Tokens',
       '#disabled' => TRUE,
+      '#size' => 23,
       '#value' => count($tokens),
     ];
-    $form['token_count_wrapper']['tokens'] = [
-      '#type' => 'textarea',
-      '#title' => 'Tokens',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => '[' . implode(', ', $tokens) . ']',
+    $form['tokenizer']['output'] = [
+      '#type' => 'container',
     ];
-    $form['token_count_wrapper']['tokens_textual'] = [
-      '#type' => 'textarea',
-      '#title' => 'Tokens as text',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => implode('|', $encoder->decode2($tokens)),
+    $form['tokenizer']['output'] ['tokens'] = [
+      '#theme' => 'code_block',
+      '#language' => 'php',
+      '#code' => json_encode($tokens),
     ];
 
-    $form['chunking'] = [
-      '#type' => 'select',
-      '#title' => 'Chunking Strategy',
-      '#default_value' => 'fixed',
-      '#options' => [
-        'none' => 'None',
-        'fixed' => 'Fixed (preserve words)',
-        'paragraph' => 'Paragraph splitting',
-        'window' => 'Sliding window',
+    /*
+     * Step 4: Splitting the content.
+     * A single piece of content can be broken into smaller chunks to influence
+     * how the page is surfaced in vector search results.
+     */
+    $form['splitter'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'splitter-wrapper',
+        'class' => 'section-grid',
       ],
+    ];
+    $form['splitter']['controls'] = [
+      '#type' => 'container',
+    ];
+    $form['splitter']['controls']['splitter_plugin'] = [
+      '#type' => 'select',
+      '#title' => 'Splitter',
+      '#default_value' => 'fixed',
+      '#options' => $this->dropaiSplitterManager->getPluginOptions(),
       '#ajax' => [
         'callback' => '::updateFormParts',
         'event' => 'change',
       ],
     ];
-    $form['chunk_max_size'] = [
+    $form['splitter']['controls']['split_max_size'] = [
       '#type' => 'number',
-      '#title' => 'Chunk max size (character)',
+      '#title' => 'Split size (characters)',
       '#default_value' => 500,
       '#min' => 1,
       '#step' => 1,
       '#states' => [
         'invisible' => [
-          ':input[name="chunking"]' => ['value' => 'none'],
+          ':input[name="splitter_plugin"]' => ['value' => 'none'],
         ],
       ],
       '#ajax' => [
@@ -259,16 +309,16 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-    $form['chunk_overlap'] = [
+    $form['splitter']['controls']['split_overlap'] = [
       '#type' => 'number',
-      '#title' => 'Chunk overlap (%)',
+      '#title' => 'Overlap (%)',
       '#default_value' => 20,
       '#min' => 1,
       '#max' => 100,
       '#step' => 1,
       '#states' => [
         'visible' => [
-          ':input[name="chunking"]' => ['value' => 'window'],
+          ':input[name="splitter_plugin"]' => ['value' => 'window'],
         ],
       ],
       '#ajax' => [
@@ -276,84 +326,27 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
-
-    $maxChunkSize = $form_state->getValue('chunk_max_size', '500');
-    $strategy = $form_state->getValue('chunking', 'fixed');
-    if ($strategy == 'fixed') {
-      $chunks = explode("%%%", wordwrap($clean, $maxChunkSize, "%%%", false));
-    }
-    else if ($strategy == 'paragraph') {
-      $paragraphs = explode("\n", $clean);
-      $chunks = [];
-      foreach ($paragraphs as $paragraph) {
-        if (empty(trim($paragraph))) continue;
-        $length = strlen($paragraph);
-        for ($i = 0; $i < $length; $i += $maxChunkSize) {
-            $chunks[] = substr($paragraph, $i, $maxChunkSize);
-        }
-      }
-    }
-    else if ($strategy == 'window') {
-      // TODO: Review this code. Something seems off with the first chunks.
-      $overlap = $form_state->getValue('chunk_overlap', '20') * .01;
-      // Calculate the step size based on the overlap percentage
-      $stepSize = (int)($maxChunkSize * (1 - $overlap));
-
-      // Array to hold chunks
-      $chunks = [];
-
-      // Split text into words
-      $words = preg_split('/\s+/', $clean);
-
-      // Create the initial chunk
-      $currentChunk = [];
-      $currentSize = 0;
-
-      foreach ($words as $word) {
-        $wordLength = strlen($word) + 1; // Adding 1 for the space or punctuation
-        if ($currentSize + $wordLength > $maxChunkSize) {
-            // If adding the next word exceeds the max chunk size, finalize the current chunk
-            $chunks[] = implode(' ', $currentChunk);
-            // Create the new chunk with overlap
-            $overlapWords = array_slice($currentChunk, -($maxChunkSize - $stepSize));
-            $currentChunk = $overlapWords;
-            $currentSize = array_sum(array_map('strlen', $overlapWords)) + count($overlapWords) - 1;
-            // Add the current word to the new chunk
-            $currentChunk[] = $word;
-            $currentSize += $wordLength;
-        }
-        else {
-            // Add the word to the current chunk
-            $currentChunk[] = $word;
-            $currentSize += $wordLength;
-        }
-      }
-      // Add the final chunk if it contains any words
-      if (!empty($currentChunk)) {
-        $chunks[] = implode(' ', $currentChunk);
-      }
-    }
-    else {
-      $chunks = [$clean];
-    }
-
-    $form['chunks_wrapper'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'chunks-wrapper'],
-    ];
-    $form['chunks_wrapper']['count'] = [
+    $splitter_id = $form_state->getValue('splitter_plugin', 'fixed');
+    $splitMaxSize = $form_state->getValue('split_max_size', '500');
+    $splitOverlap = $form_state->getValue('split_overlap', '500') * .01;
+    $splitter = $this->dropaiSplitterManager->createInstance($splitter_id);
+    $chunks = $splitter->split($processed, maxSize: $splitMaxSize, overlap: $splitOverlap);
+    $form['splitter']['controls']['count'] = [
       '#type' => 'textfield',
       '#title' => 'Chunk count',
       '#disabled' => TRUE,
+      '#size' => 23,
       '#value' => count($chunks),
     ];
-    $form['chunks_wrapper']['text'] = [
-      '#type' => 'textarea',
-      '#title' => 'Text chunks',
-      '#disabled' => TRUE,
-      '#rows' => 10,
-      '#value' => implode('|', $chunks),
+    $form['splitter']['preview'] = [
+      '#theme' => 'array_block',
+      '#items' => $chunks,
     ];
+
+    /*
+     * Step 5: Generating embeddings.
+     * TBD. Considering using OpenAI API and Hugging Face Transformers Python.
+     */
 
     return $form;
   }
@@ -374,29 +367,19 @@ class EntityInspectForm extends FormBase {
    * AJAX callback to update multiple parts of the form.
    */
   public function updateFormParts(array &$form, FormStateInterface $form_state) {
+    // Rebuild wrappers with content that may conditionally change.
     $response = new AjaxResponse();
-
-    // Rebuild the cleaner wrapper.
-    $response->addCommand(new ReplaceCommand('#cleaner-wrapper', $form['cleaner_wrapper']));
-    $response->addCommand(new ReplaceCommand('#token-count-wrapper', $form['token_count_wrapper']));
-    $response->addCommand(new ReplaceCommand('#chunks-wrapper', $form['chunks_wrapper']));
+    $response->addCommand(new ReplaceCommand('#source-wrapper', $form['source']));
+    $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
+    $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
+    $response->addCommand(new ReplaceCommand('#splitter-wrapper', $form['splitter']));
     return $response;
   }
 
-  /**
-   * Gets the entity of this form.
-   *
-   * @return \Drupal\Core\Entity\EntityInterface
-   *   The entity.
-   */
-  public function getEntity() {
-    return $this->entity;
-  }
-
-  protected function processContentBody(EntityInterface $entity) {
+  public function fetchContent(EntityInterface $entity) {
     $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
     $renderArray = $view_builder->view($entity, 'default');
-    return $this->renderer->render($renderArray);
+    return $this->renderer->render($renderArray)->__toString();
   }
 
 }
