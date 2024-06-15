@@ -6,7 +6,7 @@ use Drupal\dropai\Plugin\DropaiPreprocessorBase;
 use League\HTMLToMarkdown\HtmlConverter;
 
 /**
- * Provides a sample DropAI Preprocessor plugin.
+ * Provides a DropAI Preprocessor plugin to convert HTML to markdown.
  *
  * @DropaiPreprocessor(
  *   id = "markdown",

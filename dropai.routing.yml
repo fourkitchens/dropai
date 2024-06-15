@@ -25,3 +25,12 @@ media.pdf_reader.content:
   requirements:
     _pdf_reader_access_check: 'TRUE'
     media: \d+
+
+dropai.indexing:
+  path: '/admin/config/dropai/indexing'
+  defaults:
+    _form: '\Drupal\dropai\Form\IndexingSettingsForm'
+    _title: 'DropAI Indexing'
+  requirements:
+    _permission: 'administer dropai'
+

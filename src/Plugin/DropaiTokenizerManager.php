@@ -45,6 +45,9 @@ class DropaiTokenizerManager extends DefaultPluginManager {
    */
   public function getPluginOptions() {
     $plugin_definitions = $this->getDefinitions();
+    if (empty($plugin_definitions)) {
+      return ['' => 'No tokenizer plugins detected'];
+    }
     $options = [];
     foreach ($plugin_definitions as $plugin_id => $plugin_definition) {
       $options[$plugin_id] = $plugin_definition['label'];
