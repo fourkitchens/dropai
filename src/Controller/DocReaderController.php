@@ -37,7 +37,7 @@ class DocReaderController extends ControllerBase {
         $docReader = $this->docReaderFactory->create($file);
 
         if (is_null($docReader)) {
-          $output = $this->t('PDF reader type not supported.');
+          $output = $this->t('Document format not supported.');
         }
         else {
           $text = $docReader->getText($filePath);

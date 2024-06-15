@@ -7,7 +7,7 @@ use Drupal\Core\Routing\Access\AccessInterface;
 use Drupal\media\Entity\Media;
 use Symfony\Component\Routing\Route;
 
-class PdfContentAccessCheck implements AccessInterface {
+class MediaContentAccessCheck implements AccessInterface {
 
   /**
    * Checks access for a specific request.

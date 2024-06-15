@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\dropai\Plugin\PdfReader;
+namespace Drupal\dropai\Plugin\DocReader;
 
 use Smalot\PdfParser\Parser;
 

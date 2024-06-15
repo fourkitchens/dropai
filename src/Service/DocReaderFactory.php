@@ -18,21 +18,24 @@ class DocReaderFactory {
   public function create($file) {
     $reader = '';
     $fileType = $file->get('filemime')->value;
+    $config = $this->configFactory->get('dropai.document_reader.settings');
 
     if (str_contains($fileType, 'word')) {
-      $reader = 'PhpWordReader';
+      $reader = $config->get('word_library') ?: 'PhpWordReader';
+    }
+    elseif (str_contains($fileType, 'opendocument')) {
+      $reader = $config->get('odt_library') ?: 'PhpOdtReader';
     }
     elseif (str_contains($fileType, 'pdf')) {
-      $config = $this->configFactory->get('dropai.pdf_reader.settings');
       $reader = $config->get('pdf_library') ?: 'PDFParserReader';
     }
     else {
       return NULL;
     }
 
-    $file = __DIR__ . '/../Plugin/PdfReader/' . $reader . '.php';
+    $file = __DIR__ . '/../Plugin/DocReader/' . $reader . '.php';
     if (file_exists($file)) {
-      $className = 'Drupal\\dropai\\Plugin\\PdfReader\\' . $reader;
+      $className = 'Drupal\\dropai\\Plugin\\DocReader\\' . $reader;
       return new $className();
     }
     else {
