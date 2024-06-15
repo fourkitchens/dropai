@@ -4,13 +4,13 @@ namespace Drupal\dropai\Plugin\DocReader;
 
 use PhpOffice\PhpWord\IOFactory;
 
-class PhpWordReader implements DocReaderInterface {
+class PhpWord97Reader implements DocReaderInterface {
 
   public function getText($filePath) {
     $content = '';
 
     try {
-      $reader = IOFactory::createReader('Word2007');
+      $reader = IOFactory::createReader('MsDoc');
       $document = $reader->load($filePath);
 
       foreach ($document->getSections() as $section) {

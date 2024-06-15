@@ -60,14 +60,6 @@ class DocReaderSettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('word_library') ?: 'PhpWordReader',
     ];
 
-    $form['odt_library'] = [
-      '#type' => 'select',
-      '#title' => $this->t('ODT Library'),
-      '#description' => $this->t('Select the ODT library to use for conversion.'),
-      '#options' => $this->discoverDocReaders('odt'),
-      '#default_value' => $config->get('odt_library') ?: 'PhpOdtReader',
-    ];
-
     return parent::buildForm($form, $form_state);
   }
 
@@ -95,7 +87,8 @@ class DocReaderSettingsForm extends ConfigFormBase {
     foreach ($files as $file) {
       if (
         preg_match('/^[A-Za-z0-9]+Reader\.php$/', $file) &&
-        str_contains(strtolower($file), $format)
+        str_contains(strtolower($file), $format) &&
+        !str_contains($file, '97')
       ) {
         $readerFile = str_replace('.php', '', $file);
         $readerName = str_replace('Reader.php', '', $file);
