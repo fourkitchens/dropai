@@ -22,21 +22,43 @@ function dropai_entity_type_build(array &$entity_types) {
  * Implements hook_entity_insert().
  */
 function dropai_entity_insert(EntityInterface $entity) {
-  \Drupal::service('dropai.entity_update')->upsertDocument($entity);
+  dropai_add_item_to_queue_worker($entity, 'insert');
 }
 
 /**
  * Implements hook_entity_update().
  */
 function dropai_entity_update(EntityInterface $entity) {
-  \Drupal::service('dropai.entity_update')->upsertDocument($entity);
+  dropai_add_item_to_queue_worker($entity, 'update');
 }
 
 /**
  * Implements hook_entity_update().
  */
 function dropai_entity_delete(EntityInterface $entity) {
-  \Drupal::service('dropai.entity_update')->removeDocument($entity);
+  dropai_add_item_to_queue_worker($entity, 'remove');
+}
+
+/**
+ * This function adds an item to the queue worker.
+ */
+function dropai_add_item_to_queue_worker(EntityInterface $entity, string $action) {
+  $entity_id = $entity->id();
+  $entity_type = $entity->getEntityTypeId();
+
+  if (!in_array($entity_type, ['node'])) {
+    return;
+  }
+
+  $queue = \Drupal::service('queue')->get('dropai_embedding_queue_worker');
+
+  $item = [
+    'entity_id' => $entity_id,
+    'entity_type' => $entity_type,
+    'action' => $action,
+  ];
+
+  $queue->createItem($item);
 }
 
 /**
