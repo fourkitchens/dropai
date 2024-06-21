@@ -17,9 +17,11 @@ use Psr\Http\Message\ResponseInterface;
 class OpenaiEmbedding extends DropaiEmbeddingBase {
 
   public $models = [
-    'embedding-001' => 'Embedding 001',
-    'text-embedding-004' => 'Text Embedding 004',
+    'text-embedding-3-large' => 'text-embedding-3-large',
+    'text-embedding-3-small' => 'text-embedding-3-small',
+    'text-embedding-ada-002' => 'text-embedding-ada-002',
   ];
+
   /**
    * {@inheritDoc}
    */
@@ -27,12 +29,8 @@ class OpenaiEmbedding extends DropaiEmbeddingBase {
     try {
       $this->validateModel($model);
       $apiKey = $this->getApiKey('dropai_openai.settings', 'api_key');
-      $embeddings = [];
-      foreach ($texts as $text) {
-        $response = $this->makeApiRequest($apiKey, $text, $model);
-        $embeddings[] = $this->extractEmbeddings($response);
-      }
-      return $embeddings;
+      $response = $this->makeApiRequest($apiKey, $texts, $model);
+      return $this->extractEmbeddings($response);
     }
     catch (\Exception $e) {
       $this->logger->error('An error occurred: ' . $e->getMessage());
@@ -56,20 +54,16 @@ class OpenaiEmbedding extends DropaiEmbeddingBase {
    * @throws \GuzzleHttp\Exception\RequestException
    *   If the request fails.
    */
-  protected function makeApiRequest(string $apiKey, string $text, string $model) {
-    $apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:embedContent";
+  protected function makeApiRequest(string $apiKey, array $texts, string $model) {
+    $apiEndpoint = "https://api.openai.com/v1/embeddings";
     return $this->httpClient->post($apiEndpoint, [
       'headers' => [
+        'Authorization' => 'Bearer ' . $apiKey,
         'Content-Type' => 'application/json',
       ],
-      'query' => [
-        'key' => $apiKey,
-      ],
-      'json' => [
-        'model' => "models/{$model}",
-        'content' => [
-          'parts' => ['text' => $text],
-        ],
+        'json' => [
+          'input' => $texts,
+          'model' => $model,
       ],
     ]);
   }
@@ -88,10 +82,12 @@ class OpenaiEmbedding extends DropaiEmbeddingBase {
    */
   protected function extractEmbeddings(ResponseInterface $response): array {
     $data = json_decode($response->getBody()->getContents(), true);
-    if (!isset($data['embedding']['values'])) {
+    if (!isset($data['data'])) {
       throw new \Exception('Invalid response structure.');
     }
-    return $data['embedding']['values'];
+    return array_map(function($item) {
+      return $item['embedding'];
+    }, $data['data']);
   }
 
 }

@@ -398,11 +398,19 @@ class EntityInspectForm extends FormBase {
     ];
     $model = $form_state->getValue('embedding_model', '');
     $embeddings = $embedding->getEmbeddings($chunks, $model);
+    // $form['embedding']['preview'] = [
+    //   '#theme' => 'code_block',
+    //   '#language' => 'php',
+    //   '#code' => json_encode($embeddings),
+    // ];
+    $embeddings = array_map(function($chunk) {
+      return json_encode($chunk);
+    }, $embeddings);
     $form['embedding']['preview'] = [
-      '#theme' => 'code_block',
-      '#language' => 'php',
-      '#code' => json_encode($embeddings),
+      '#theme' => 'array_block',
+      '#items' => $embeddings,
     ];
+
 
     return $form;
   }
