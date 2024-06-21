@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from tokens import num_tokens, encoded_from_string
-from langchain import pdf_to_string
 from bs4 import BeautifulSoup as bs
+from semantic_text_splitter import TextSplitter
 
 app = Flask(__name__)
 
@@ -38,10 +38,19 @@ def tokens():
     return jsonify(response)
 
 @app.route('/html-to-text', methods=['POST'])
-def structured():
+def htmlToText():
     data = request.get_json()
     soup = bs(data['string'], 'html.parser')
     response = {'status': 'success', 'data': soup.get_text("\r\n", strip=True)}
+    return jsonify(response)
+
+@app.route('/splitter', methods=['POST'])
+def splitter():
+    data = request.get_json()
+    max_characters = 1000
+    splitter = TextSplitter(max_characters)
+    chunks = splitter.chunks(data['string'])
+    response = {'status': 'success', 'data': chunks}
     return jsonify(response)
 
 if __name__ == '__main__':
