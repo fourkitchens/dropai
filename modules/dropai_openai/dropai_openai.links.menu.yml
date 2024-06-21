@@ -1,0 +1,6 @@
+# Add DropAI OpenAI settings page to the admin menu.
+dropai_openai.settings:
+  route_name: dropai_openai.settings
+  parent: dropai.admin
+  title: OpenAI Settings
+  description: 'Configure OpenAI Service settings.'

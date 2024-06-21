@@ -74,12 +74,19 @@ class IndexingSettingsForm extends ConfigFormBase {
     $form['#tree'] = TRUE;
     $config = $this->config('dropai.indexing_settings');
 
-    // Form to select the content entities included in the vector index.
+    // Select the content bundles that should be indexed.
+    $form['source'] = [
+      '#type' => 'details',
+      '#open' => TRUE,
+      '#title' => $this->t('Content Entities'),
+    ];
+    $form['source']['instructions'] = [
+      '#markup' => $this->t('The DropAI module allows you to generate embeddings for your Drupal content to be used in a Retrieval-Augmented Generation (RAG) architecture. This interface enables you to select which content entities to include in the vector database. If an entity has bundles, you can also configure rules to include or exclude specific types.'),
+    ];
     $content_entity_types = $this->getContentEntityTypes();
-    $form['entities'] = [
+    $form['source']['entities'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Content Entities'),
-      '#description' => $this->t('Select the content entity types to be processed by DropAI.'),
       '#options' => $content_entity_types,
       '#default_value' => array_keys($config->get('entities') ?? []),
       '#ajax' => [
@@ -87,31 +94,28 @@ class IndexingSettingsForm extends ConfigFormBase {
         'wrapper' => 'bundle-settings-wrapper',
       ],
     ];
+
+    // Set rules to include or exclude specific entity bundles.
     $form['bundle_settings'] = [
       '#type' => 'container',
       '#attributes' => ['id' => 'bundle-settings-wrapper'],
     ];
-
-    // Form to select the bundles that should be included in the vector index.
-    $selected = array_filter($form_state->getValue('entities', array_keys($config->get('entities') ?? [])));
+    $selected = array_filter($form_state->getValue(['source', 'entities'], array_keys($config->get('entities') ?? [])));
     foreach ($selected as $entity_type_id) {
       // Skip entities that do not have bundles.
       if (!$this->hasBundles($entity_type_id)) {
         continue;
       }
-
       $bundles = $this->entityTypeBundleInfo->getBundleInfo($entity_type_id);
       $bundle_options = [];
       foreach ($bundles as $bundle_id => $bundle) {
         $bundle_options[$bundle_id] = $bundle['label'];
       }
-
       $form['bundle_settings'][$entity_type_id] = [
         '#type' => 'details',
         '#closed' => TRUE,
         '#title' => $content_entity_types[$entity_type_id] . ' ' . $this->t('Bundle Settings'),
       ];
-
       $form['bundle_settings'][$entity_type_id]['index_type'] = [
         '#type' => 'radios',
         '#title' => $this->t('Which bundles should be indexed?'),
@@ -121,7 +125,6 @@ class IndexingSettingsForm extends ConfigFormBase {
         ],
         '#default_value' => $config->get('entities')[$entity_type_id]['index_type'] ?? 'exclude',
       ];
-
       $form['bundle_settings'][$entity_type_id]['bundles'] = [
         '#type' => 'checkboxes',
         '#title' => $this->t('Bundles'),
@@ -129,7 +132,6 @@ class IndexingSettingsForm extends ConfigFormBase {
         '#default_value' => $config->get('entities')[$entity_type_id]['bundles'] ?? [],
       ];
     }
-
     return parent::buildForm($form, $form_state);
   }
 
@@ -145,8 +147,7 @@ class IndexingSettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('dropai.indexing_settings');
-    $entities = array_filter($form_state->getValue('entities'));
-
+    $entities = array_filter($form_state->getValue(['source', 'entities']));
     $entities_settings = [];
     foreach ($entities as $entity_type_id) {
       $entities_settings[$entity_type_id] = [
@@ -154,9 +155,7 @@ class IndexingSettingsForm extends ConfigFormBase {
         'bundles' => array_filter($form_state->getValue(['bundle_settings', $entity_type_id, 'bundles']) ?? []),
       ];
     }
-
     $config->set('entities', $entities_settings)->save();
-
     parent::submitForm($form, $form_state);
   }
 
@@ -169,7 +168,7 @@ class IndexingSettingsForm extends ConfigFormBase {
   protected function getContentEntityTypes() {
     $content_entity_types = [];
     foreach ($this->entityTypeManager->getDefinitions() as $entity_type_id => $entity_type) {
-      if ($entity_type->entityClassImplements('Drupal\Core\Entity\ContentEntityInterface')) {
+      if ($entity_type->entityClassImplements('Drupal\Core\Entity\\ContentEntityInterface')) {
         $content_entity_types[$entity_type_id] = $entity_type->getLabel();
       }
     }
