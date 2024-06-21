@@ -442,9 +442,19 @@ class EntityInspectForm extends FormBase {
   }
 
   public function fetchContent(EntityInterface $entity) {
-    $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
-    $renderArray = $view_builder->view($entity, 'default');
-    return $this->renderer->render($renderArray)->__toString();
+    if($entity->getEntityTypeId() == 'media') {
+      if ($entity->bundle() == 'image') {
+        // Image work here.
+      }
+      else if ($entity->bundle() == 'document') {
+        // Docloaders here.
+      }
+      else {
+        $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
+        $renderArray = $view_builder->view($entity, 'default');
+        return $this->renderer->render($renderArray)->__toString();
+      }
+    }
   }
 
 }
