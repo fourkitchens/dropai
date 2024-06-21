@@ -27,3 +27,12 @@ services:
   plugin.manager.dropai_tokenizer:
     class: Drupal\dropai\Plugin\DropaiTokenizerManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Define a service to build a Factory to the document Reader.
+  dropai.document_reader.factory:
+    class: Drupal\dropai\Service\DocReaderFactory
+    arguments: ['@config.factory']
+  # Define a service for media content access.
+  dropai.doc_reader.access_check.doc_content:
+    class: Drupal\dropai\Access\MediaContentAccessCheck
+    tags:
+      - { name: access_check, applies_to: _doc_reader_access_check }

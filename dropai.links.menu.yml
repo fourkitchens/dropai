@@ -4,6 +4,13 @@ dropai.admin:
   parent: system.admin_config
   title: DropAI
   weight: -10
+# Add custom menu for the 'Readers' settings.
+dropai.admin.doc_readers:
+  route_name: dropai.admin.readers
+  title: 'Document Readers Settings'
+  description: 'Configure the library used for conversion.'
+  parent: dropai.admin
+  weight: -5
 dropai.indexing:
   route_name: dropai.indexing
   parent: dropai.admin
