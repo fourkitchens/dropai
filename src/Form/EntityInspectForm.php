@@ -450,10 +450,13 @@ class EntityInspectForm extends FormBase {
         // Docloaders here.
       }
       else {
-        $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
-        $renderArray = $view_builder->view($entity, 'default');
-        return $this->renderer->render($renderArray)->__toString();
+        return '';
       }
+    }
+    else {
+      $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
+      $renderArray = $view_builder->view($entity, 'default');
+      return $this->renderer->render($renderArray)->__toString();
     }
   }
 
