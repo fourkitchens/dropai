@@ -1,0 +1,6 @@
+# Add DropAI Gemini settings page to the admin menu.
+dropai_gemini.settings:
+  route_name: dropai_gemini.settings
+  parent: dropai.admin
+  title: Gemini Settings
+  description: 'Configure Gemini Service settings.'

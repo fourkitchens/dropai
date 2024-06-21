@@ -1,0 +1,8 @@
+# Set API keys and module settings.
+dropai_gemini.settings:
+  path: '/admin/config/dropai/gemini'
+  defaults:
+    _form: '\Drupal\dropai_gemini\Form\SettingsForm'
+    _title: 'DropAI Gemini Settings'
+  requirements:
+    _permission: 'administer dropai'

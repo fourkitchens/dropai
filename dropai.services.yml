@@ -12,7 +12,24 @@ services:
     arguments: ['@entity_type.manager']
     tags:
       - { name: event_subscriber }
+  # Add mongo storage service.
   dropai.mongo_storage:
     class: MongoDB\Database
     factory: ['@mongodb.database_factory', 'get']
     arguments: ['default']
+  # Manage embedding plugins.
+  plugin.manager.dropai_embedding:
+    class: Drupal\dropai\Plugin\DropaiEmbeddingManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage processor plugins.
+  plugin.manager.dropai_preprocessor:
+    class: Drupal\dropai\Plugin\DropaiPreprocessorManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage splitter plugins.
+  plugin.manager.dropai_splitter:
+    class: Drupal\dropai\Plugin\DropaiSplitterManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage tokenizer plugins.
+  plugin.manager.dropai_tokenizer:
+    class: Drupal\dropai\Plugin\DropaiTokenizerManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']

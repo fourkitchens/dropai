@@ -1,0 +1,12 @@
+/* Layout */
+.section-grid {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 20px;
+}
+
+/* All HighlightJS code blocks */
+code {
+  max-height: 350px;
+  word-break: break-word;
+}
