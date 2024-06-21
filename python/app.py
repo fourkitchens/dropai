@@ -23,6 +23,13 @@ def home():
             <li>string - A string of HTML to convert to plain text</li>
           </ul>
         </li>
+        <li>
+          /splitter - POST JSON with:
+          <ul>
+            <li>string - A string of HTML to split</li>
+            <li>max_characters - The maximum number of characters to split on</li>
+          </ul>
+        </li>
       </ul>
     """
     return html_content
@@ -47,8 +54,7 @@ def htmlToText():
 @app.route('/splitter', methods=['POST'])
 def splitter():
     data = request.get_json()
-    max_characters = 1000
-    splitter = TextSplitter(max_characters)
+    splitter = TextSplitter(int(data['max_characters']))
     chunks = splitter.chunks(data['string'])
     response = {'status': 'success', 'data': chunks}
     return jsonify(response)

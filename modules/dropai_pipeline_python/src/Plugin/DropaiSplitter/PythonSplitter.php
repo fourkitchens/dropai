@@ -70,6 +70,7 @@ class PythonSplitter extends DropaiSplitterBase implements ContainerFactoryPlugi
       $response = $this->httpClient->post($url, [
         'json' => [
           'string' => $text,
+          'max_characters' => $args['maxSize'],
         ],
       ],);
       $body = json_decode($response->getBody()->__toString(), TRUE)['data'];
