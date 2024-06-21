@@ -12,6 +12,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\dropai\Plugin\DropaiEmbeddingManager;
 use Drupal\dropai\Plugin\DropaiPreprocessorManager;
 use Drupal\dropai\Plugin\DropaiSplitterManager;
 use Drupal\dropai\Plugin\DropaiTokenizerManager;
@@ -20,6 +21,13 @@ use Drupal\dropai\Plugin\DropaiTokenizerManager;
  * Implements an entity Inspect form.
  */
 class EntityInspectForm extends FormBase {
+
+  /**
+   * The DropAI Embedding plugin manager.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiEmbeddingManager
+   */
+  protected $dropaiEmbeddingManager;
 
   /**
    * The DropAI Preprocessor plugin manager.
@@ -78,8 +86,10 @@ class EntityInspectForm extends FormBase {
   protected $renderer;
 
   /**
-   * Constructs a new Entity Clone form.
+   * Constructs a new form.
    *
+   * @param \Drupal\dropai\Plugin\DropaiEmbeddingManager $dropai_embedding_manager
+   *   The DropAI Embedding plugin manager.
    * @param \Drupal\dropai\Plugin\DropaiPreprocessorManager $dropai_preprocessor_manager
    *   The DropAI Preprocessor plugin manager.
    * @param \Drupal\dropai\Plugin\DropaiSplitterManager $dropai_splitter_manager
@@ -98,6 +108,7 @@ class EntityInspectForm extends FormBase {
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function __construct(
+    DropaiEmbeddingManager $dropai_embedding_manager,
     DropaiPreprocessorManager $dropai_preprocessor_manager,
     DropaiSplitterManager $dropai_splitter_manager,
     DropaiTokenizerManager $dropai_tokenizer_manager,
@@ -106,6 +117,7 @@ class EntityInspectForm extends FormBase {
     MessengerInterface $messenger,
     RendererInterface $renderer
   ) {
+    $this->dropaiEmbeddingManager = $dropai_embedding_manager;
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
     $this->dropaiSplitterManager = $dropai_splitter_manager;
     $this->dropaiTokenizerManager = $dropai_tokenizer_manager;
@@ -122,6 +134,7 @@ class EntityInspectForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
+      $container->get('plugin.manager.dropai_embedding'),
       $container->get('plugin.manager.dropai_preprocessor'),
       $container->get('plugin.manager.dropai_splitter'),
       $container->get('plugin.manager.dropai_tokenizer'),
@@ -296,7 +309,7 @@ class EntityInspectForm extends FormBase {
     $form['splitter']['controls']['split_max_size'] = [
       '#type' => 'number',
       '#title' => 'Split size (characters)',
-      '#default_value' => 500,
+      '#default_value' => 1000,
       '#min' => 1,
       '#step' => 1,
       '#states' => [
@@ -327,8 +340,8 @@ class EntityInspectForm extends FormBase {
       ],
     ];
     $splitter_id = $form_state->getValue('splitter_plugin', 'fixed');
-    $splitMaxSize = $form_state->getValue('split_max_size', '500');
-    $splitOverlap = $form_state->getValue('split_overlap', '500') * .01;
+    $splitMaxSize = $form_state->getValue('split_max_size', '1000');
+    $splitOverlap = $form_state->getValue('split_overlap', '1000') * .01;
     $splitter = $this->dropaiSplitterManager->createInstance($splitter_id);
     $chunks = $splitter->split($processed, maxSize: $splitMaxSize, overlap: $splitOverlap);
     $form['splitter']['controls']['count'] = [
@@ -347,6 +360,48 @@ class EntityInspectForm extends FormBase {
      * Step 5: Generating embeddings.
      * TBD. Considering using OpenAI API and Hugging Face Transformers Python.
      */
+    $form['embedding'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'embedding-wrapper',
+        'class' => 'section-grid',
+      ],
+    ];
+    $form['embedding']['controls'] = [
+      '#type' => 'container',
+    ];
+    $form['embedding']['controls']['embedding_plugin'] = [
+      '#type' => 'select',
+      '#title' => 'Embedding',
+      '#default_value' => 'none',
+      '#options' => $this->dropaiEmbeddingManager->getPluginOptions(),
+      '#ajax' => [
+        'callback' => '::updateFormParts',
+        'event' => 'change',
+      ],
+    ];
+    $embedding_id = $form_state->getValue('embedding_plugin', 'none');
+    $embedding = $this->dropaiEmbeddingManager->createInstance($embedding_id);
+    $embeddings = $embedding->getEmbeddingsMultiple($chunks);
+    $form['embedding']['controls']['embedding_model'] = [
+      '#type' => 'select',
+      '#title' => 'Model',
+      '#options' => $embedding->getModels(),
+      "#empty_option"=>t('- None -'),
+      '#ajax' => [
+        'callback' => '::updateFormParts',
+        'event' => 'change',
+      ],
+      '#ajax' => [
+        'callback' => '::updateFormParts',
+        'event' => 'change',
+      ],
+    ];
+    $form['embedding']['preview'] = [
+      '#theme' => 'code_block',
+      '#language' => 'php',
+      '#code' => json_encode($embeddings),
+    ];
 
     return $form;
   }
@@ -373,6 +428,7 @@ class EntityInspectForm extends FormBase {
     $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
     $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
     $response->addCommand(new ReplaceCommand('#splitter-wrapper', $form['splitter']));
+    $response->addCommand(new ReplaceCommand('#embedding-wrapper', $form['embedding']));
     return $response;
   }
 

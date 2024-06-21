@@ -7,12 +7,12 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 
 /**
- * Plugin manager for DropAI Tokenizer plugins.
+ * Plugin manager for DropAI Embedding plugins.
  */
-class DropaiTokenizerManager extends DefaultPluginManager {
+class DropaiEmbeddingManager extends DefaultPluginManager {
 
   /**
-   * Constructs a new DropaiTokenizerManager object.
+   * Constructs a new DropaiEmbeddingManager object.
    *
    * @param \Traversable $namespaces
    *   An object that implements \Traversable which contains the root paths
@@ -28,14 +28,14 @@ class DropaiTokenizerManager extends DefaultPluginManager {
     ModuleHandlerInterface $module_handler
   ) {
     parent::__construct(
-      'Plugin/DropaiTokenizer',
+      'Plugin/DropaiEmbedding',
       $namespaces,
       $module_handler,
-      'Drupal\dropai\Plugin\DropaiTokenizerInterface',
-      'Drupal\dropai\Annotation\DropaiTokenizer'
+      'Drupal\dropai\Plugin\DropaiEmbeddingInterface',
+      'Drupal\dropai\Annotation\DropaiEmbedding'
     );
-    $this->alterInfo('dropai_tokenizer_info');
-    $this->setCacheBackend($cache_backend, 'dropai_tokenizer_plugins');
+    $this->alterInfo('dropai_embedding_info');
+    $this->setCacheBackend($cache_backend, 'dropai_embedding_plugins');
   }
 
   /**
@@ -46,7 +46,7 @@ class DropaiTokenizerManager extends DefaultPluginManager {
   public function getPluginOptions() {
     $plugin_definitions = $this->getDefinitions();
     if (empty($plugin_definitions)) {
-      return ['' => 'No tokenizer plugins detected'];
+      return ['' => 'No embedding plugins detected'];
     }
     $options = [];
     foreach ($plugin_definitions as $plugin_id => $plugin_definition) {

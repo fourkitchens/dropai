@@ -20,7 +20,7 @@ interface DropaiTokenizerInterface extends PluginInspectionInterface {
   public function getModels(): array;
 
   /**
-   * Remove unwanted whitespace from the string.
+   * Convert a string into an array of tokens.
    *
    * @param string $text
    *   The source text string to be tokenized.

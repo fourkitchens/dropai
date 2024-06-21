@@ -6,3 +6,10 @@ dropai.admin:
     _title: 'DropAI Admin Settings'
   requirements:
     _permission: 'administer dropai'
+dropai.indexing:
+  path: '/admin/config/dropai/indexing'
+  defaults:
+    _form: '\Drupal\dropai\Form\IndexingSettingsForm'
+    _title: 'DropAI Indexing'
+  requirements:
+    _permission: 'administer dropai'
