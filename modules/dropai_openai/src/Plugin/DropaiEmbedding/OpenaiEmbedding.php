@@ -1,20 +1,20 @@
 <?php
 
-namespace Drupal\dropai_gemini\Plugin\DropaiEmbedding;
+namespace Drupal\dropai_openai\Plugin\DropaiEmbedding;
 
 use Drupal\dropai\Plugin\DropaiEmbeddingBase;
 use Psr\Http\Message\ResponseInterface;
 
 
 /**
- * Provides a DropAI Embedding plugin using the Gemini API.
+ * Provides a DropAI Embedding plugin using the OpenAI API.
  *
  * @DropaiEmbedding(
- *   id = "gemini",
- *   label = @Translation("Google Gemini")
+ *   id = "openai",
+ *   label = @Translation("OpenAI")
  * )
  */
-class GeminiEmbedding extends DropaiEmbeddingBase {
+class OpenaiEmbedding extends DropaiEmbeddingBase {
 
   public $models = [
     'embedding-001' => 'Embedding 001',
@@ -26,7 +26,7 @@ class GeminiEmbedding extends DropaiEmbeddingBase {
   public function getEmbeddings(array $texts, string $model): array {
     try {
       $this->validateModel($model);
-      $apiKey = $this->getApiKey('dropai_gemini.settings', 'api_key');
+      $apiKey = $this->getApiKey('dropai_openai.settings', 'api_key');
       $embeddings = [];
       foreach ($texts as $text) {
         $response = $this->makeApiRequest($apiKey, $text, $model);

@@ -382,7 +382,6 @@ class EntityInspectForm extends FormBase {
     ];
     $embedding_id = $form_state->getValue('embedding_plugin', 'none');
     $embedding = $this->dropaiEmbeddingManager->createInstance($embedding_id);
-    $embeddings = $embedding->getEmbeddingsMultiple($chunks);
     $form['embedding']['controls']['embedding_model'] = [
       '#type' => 'select',
       '#title' => 'Model',
@@ -397,6 +396,8 @@ class EntityInspectForm extends FormBase {
         'event' => 'change',
       ],
     ];
+    $model = $form_state->getValue('embedding_model', '');
+    $embeddings = $embedding->getEmbeddings($chunks, $model);
     $form['embedding']['preview'] = [
       '#theme' => 'code_block',
       '#language' => 'php',

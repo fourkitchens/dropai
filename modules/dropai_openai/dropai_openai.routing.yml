@@ -1,0 +1,8 @@
+# Set API keys and module settings.
+dropai_openai.settings:
+  path: '/admin/config/dropai/openai'
+  defaults:
+    _form: '\Drupal\dropai_openai\Form\SettingsForm'
+    _title: 'DropAI OpenAI Settings'
+  requirements:
+    _permission: 'administer dropai'

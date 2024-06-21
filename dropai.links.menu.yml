@@ -4,3 +4,8 @@ dropai.admin:
   parent: system.admin_config
   title: DropAI
   weight: -10
+dropai.indexing:
+  route_name: dropai.indexing
+  parent: dropai.admin
+  title: Indexing
+  weight: -10
