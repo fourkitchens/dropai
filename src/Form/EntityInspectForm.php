@@ -16,6 +16,7 @@ use Drupal\dropai\Plugin\DropaiEmbeddingManager;
 use Drupal\dropai\Plugin\DropaiPreprocessorManager;
 use Drupal\dropai\Plugin\DropaiSplitterManager;
 use Drupal\dropai\Plugin\DropaiTokenizerManager;
+use Drupal\dropai_openai\OpenaiEntityToTextInterface;
 
 /**
  * Implements an entity Inspect form.
@@ -49,6 +50,13 @@ class EntityInspectForm extends FormBase {
    * @var \Drupal\dropai\Plugin\DropaiTokenizerManager
    */
   protected $dropaiTokenizerManager;
+
+  /**
+   * The DropAI OpenAI Image To Text service.
+   *
+   * @var \Drupal\dropai_openai\OpenaiEntityToTextInterface
+   */
+  protected $entityToText;
 
   /**
    * The entity type manager.
@@ -96,6 +104,8 @@ class EntityInspectForm extends FormBase {
    *   The DropAI Splitter plugin manager.
    * @param \Drupal\dropai\Plugin\DropaiTokenizerManager $dropai_tokenizer_manager
    *   The DropAI Tokenizer plugin manager.
+   * @param \Drupal\dropai_openai\OpenaiEntityToTextInterface $entity_to_text
+   *   The DropAI OpenAI Entity To Text service.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
@@ -112,6 +122,7 @@ class EntityInspectForm extends FormBase {
     DropaiPreprocessorManager $dropai_preprocessor_manager,
     DropaiSplitterManager $dropai_splitter_manager,
     DropaiTokenizerManager $dropai_tokenizer_manager,
+    OpenaiEntityToTextInterface $entity_to_text,
     EntityTypeManagerInterface $entity_type_manager,
     RouteMatchInterface $route_match,
     MessengerInterface $messenger,
@@ -121,6 +132,7 @@ class EntityInspectForm extends FormBase {
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
     $this->dropaiSplitterManager = $dropai_splitter_manager;
     $this->dropaiTokenizerManager = $dropai_tokenizer_manager;
+    $this->entityToText = $entity_to_text;
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $parameter_name = $route_match->getRouteObject()->getOption('_dropai_entity_type_id');
@@ -138,6 +150,7 @@ class EntityInspectForm extends FormBase {
       $container->get('plugin.manager.dropai_preprocessor'),
       $container->get('plugin.manager.dropai_splitter'),
       $container->get('plugin.manager.dropai_tokenizer'),
+      $container->get('dropai_openai.entity_to_text'),
       $container->get('entity_type.manager'),
       $container->get('current_route_match'),
       $container->get('messenger'),
@@ -443,10 +456,10 @@ class EntityInspectForm extends FormBase {
 
   public function fetchContent(EntityInterface $entity) {
     if($entity->getEntityTypeId() == 'media') {
-      if ($entity->bundle() == 'image') {
-        // Image work here.
+      if ($entity->bundle() == 'image' || $entity->bundle() == 'audio') {
+        return $this->entityToText->getEntityAsText($entity);
       }
-      else if ($entity->bundle() == 'document') {
+      elseif ($entity->bundle() == 'document') {
         // Docloaders here.
       }
       else {
