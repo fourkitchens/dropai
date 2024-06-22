@@ -1,0 +1,6 @@
+# Add DropAI Cohere settings page to the admin menu.
+dropai_cohere.settings:
+  route_name: dropai_cohere.settings
+  parent: dropai.admin
+  title: Cohere Settings
+  description: 'Configure Cohere Service settings.'
