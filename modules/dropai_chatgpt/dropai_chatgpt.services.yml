@@ -1,0 +1,7 @@
+services:
+  # Manage ChatGPT Chat Completions.
+  dropai_chatgpt.chat_completions:
+    class: Drupal\dropai_chatgpt\Service\ChatCompletions
+    arguments:
+      - '@config.factory'
+      - '@logger.factory'

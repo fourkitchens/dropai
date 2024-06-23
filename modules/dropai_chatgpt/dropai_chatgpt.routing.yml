@@ -1,0 +1,8 @@
+# Set OpenAI chat settings.
+dropai_chatgpt.settings:
+  path: '/admin/config/dropai/openai/chatgpt'
+  defaults:
+    _form: '\Drupal\dropai_chatgpt\Form\ChatGptSettingsForm'
+    _title: 'ChatGPT Global Settings'
+  requirements:
+    _permission: 'administer chatgpt'
