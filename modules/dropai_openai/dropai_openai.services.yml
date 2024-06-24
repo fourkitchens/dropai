@@ -1,0 +1,16 @@
+services:
+  dropai_openai.connector:
+    class: Drupal\dropai_openai\Openai
+    arguments:
+      - '@config.factory'
+      - '@http_client'
+      - '@logger.channel.default'
+      - '@messenger'
+
+  dropai_openai.entity_to_text:
+    class: Drupal\dropai_openai\OpenaiEntityToText
+    arguments:
+      - '@dropai_openai.connector'
+      - '@entity_type.manager'
+      - '@logger.channel.default'
+      - '@messenger'
