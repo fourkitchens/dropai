@@ -1,0 +1,8 @@
+# Set API keys and module settings.
+dropai_cohere.settings:
+  path: '/admin/config/dropai/cohere'
+  defaults:
+    _form: '\Drupal\dropai_cohere\Form\SettingsForm'
+    _title: 'DropAI Cohere Settings'
+  requirements:
+    _permission: 'administer dropai'
