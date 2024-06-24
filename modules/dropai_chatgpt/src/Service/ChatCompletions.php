@@ -97,17 +97,48 @@ class ChatCompletions {
   }
 
   /**
-   * Request.
+   * Chat Completion Request.
    *
-   * @param string $model
    * @param array $messages
+   * @param string $model
+   * @param [type] $gptTemperature
+   * @param [type] $gptMaximumTokens
+   * @param [type] $gptTopP
+   * @param [type] $gptFrequencyPenalty
+   * @param [type] $gptPresencePenalty
+   * @return void
    */
-  public function getChatCompletion(string $model, array $messages) {
+  public function getChatCompletion(
+    array $messages,
+    string $gptModel,
+    $gptTemperature = NULL,
+    $gptMaximumTokens = NULL,
+    $gptTopP = NULL,
+    $gptFrequencyPenalty = NULL,
+    $gptPresencePenalty = NULL 
+  ) {
     $output = '';
     $data = [
-      'model' => $model,
+      'model' => $gptModel,
       'messages' => $messages,
     ];
+
+    // Add special configuration.
+    if (!is_null($gptTemperature) && $temperature = (float) $gptTemperature) {
+      $data['temperature'] = $temperature;
+    }
+    if (!is_null($gptMaximumTokens) && $maximumTokens = (float) $gptMaximumTokens) {
+      $data['max_tokens'] = (int) $maximumTokens;
+    }
+    if (!is_null($gptTopP) && $topP = (float) $gptTopP) {
+      $data['top_p'] = $topP;
+    }
+    if (!is_null($gptFrequencyPenalty) && $frequencyPenalty = (float) $gptFrequencyPenalty) {
+      $data['frequency_penalty'] = $frequencyPenalty;
+    }
+    if (!is_null($gptPresencePenalty) && $presencePenalty = (float) $gptPresencePenalty) {
+      $data['presence_penalty'] = (float) $presencePenalty;
+    }
 
     $ch = curl_init($this->apiCompletionsUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

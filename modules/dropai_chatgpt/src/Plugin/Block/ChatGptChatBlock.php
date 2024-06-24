@@ -58,11 +58,13 @@ class ChatGptChatBlock extends BlockBase implements ContainerFactoryPluginInterf
    * {@inheritdoc}
    */
   public function build() {
-    $form = $this->formBuilder->getForm('Drupal\dropai_chatgpt\Form\ChatGptChatForm');
-
-    return [
-      'content' => $form,
+    $build = [];
+    $build['content'] = $this->formBuilder->getForm('Drupal\dropai_chatgpt\Form\ChatGptChatForm');
+    $build['#cache'] = [
+      'max-age' => 0,
     ];
+
+    return $build;
   }
 
 }

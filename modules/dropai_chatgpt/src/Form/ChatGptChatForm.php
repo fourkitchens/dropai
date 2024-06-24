@@ -7,6 +7,8 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\Core\Ajax\InvokeCommand;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\dropai_chatgpt\Service\ChatCompletions;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -16,6 +18,16 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ChatGptChatForm extends FormBase {
 
   /**
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $currentUser;
+
+  /**
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected $cache;
+
+  /**
    * The example service.
    *
    * @var \Drupal\dropai_chatgpt\Service\ChatCompletions
@@ -23,13 +35,23 @@ class ChatGptChatForm extends FormBase {
   protected $chatCompletions;
 
   /**
+   * Cache name.
+   *
+   * @var string
+   */
+  protected $cacheName;
+
+  /**
    * Constructs a new AjaxConcatForm.
    *
    * @param \Drupal\dropai_chatgpt\Service\ChatCompletions
    *   The example service.
    */
-  public function __construct(ChatCompletions $chatCompletions) {
+  public function __construct(AccountProxyInterface $currentUser, CacheBackendInterface $cache_backend, ChatCompletions $chatCompletions) {
+    $this->currentUser = $currentUser;
+    $this->cache = $cache_backend;
     $this->chatCompletions = $chatCompletions;
+    $this->cacheName = 'dropai_chatgpt.chat_completions-' . base64_encode($this->currentUser->id() . '-' . time());
   }
 
   /**
@@ -37,6 +59,8 @@ class ChatGptChatForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
+      $container->get('current_user'),
+      $container->get('cache.default'),
       $container->get('dropai_chatgpt.chat_completions')
     );
   }
@@ -45,7 +69,7 @@ class ChatGptChatForm extends FormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'dropai_chatgpt_chat_form';
+    return 'dropai_chatgpt_chat_completions_form';
   }
 
   /**
@@ -145,6 +169,8 @@ class ChatGptChatForm extends FormBase {
     $form['chatgpt_chat_container'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('CHAT'),
+      '#prefix' => '<div id="chat-wrapper">',
+      '#suffix' => '</div>',
     ];
 
     $form['chatgpt_chat_container']['chatgpt_chat'] = [
@@ -170,53 +196,87 @@ class ChatGptChatForm extends FormBase {
       '#type' => 'button',
       '#value' => $this->t('Send'),
       '#ajax' => [
-        'callback' => '::ajaxConcatCallback',
-        'wrapper' => 'textarea-wrapper',
+        'callback' => '::ajaxAskCallback',
+        'wrapper' => 'chat-wrapper',
       ],
     ];
 
-    $form['#prefix'] = '<div id="textarea-wrapper">';
-    $form['#suffix'] = '</div>';
-
     // Attach the JavaScript library.
     $form['#attached']['library'][] = 'dropai_chatgpt/chatgpt-textarea-scroll-down';
+
+    // Disable cache for the form.
+    $form['#cache'] = [
+      'max-age' => 0,
+    ];
 
     return $form;
   }
 
   /**
-   * Undocumented function
+   * Ajax function.
    *
    * @param array $form
    * @param FormStateInterface $form_state
    * @return void
    */
-  public function ajaxConcatCallback(array &$form, FormStateInterface $form_state) {
+  public function ajaxAskCallback(array &$form, FormStateInterface &$form_state) {
     $response = new AjaxResponse();
-    $chatHistory = $form_state->getValue('chatgpt_chat');
-    $model = $form_state->getValue('chatgpt_model');
-    $chatgptInput = trim($form_state->getValue('chatgpt_input'));
+    $chatMessages = $form_state->getValue('chatgpt_chat');
+    $chatInput = trim($form_state->getValue('chatgpt_input'));
 
-    if (empty($chatgptInput)) {
+    // Get ChatGPT configuration.
+    $gptModel = $form_state->getValue('chatgpt_model');
+    $gptTemperature = $form_state->getValue('chatgpt_temperature');
+    $gptMaximumTokens = $form_state->getValue('chatgpt_maximum_tokens');
+    $gptTopP = $form_state->getValue('chatgpt_top_p');
+    $gptFrequencyPenalty = $form_state->getValue('chatgpt_frequency_penalty');
+    $gptPresencePenalty = $form_state->getValue('chatgpt_presence_penalty');
+
+    // Load the chat cache.
+    $cacheData = $this->cache->get($this->cacheName);
+    if ($cacheData && isset($cacheData->data) && is_array($cacheData->data)) {
+      $messageHistory = $cacheData->data;
+    }
+    else {
+      $messageHistory = [];
+    }
+
+    // Check that the input is not empty.
+    if (empty($chatInput)) {
       return;
     }
 
-    if (!empty($chatHistory)) {
-      $chatHistory .= PHP_EOL . PHP_EOL . PHP_EOL;
-    }
-
-    $messages = [];
-    $messages[] = [
+    // Add the ask to the history.
+    $messageHistory[] = [
       'role' => 'user',
-      'content' => $chatgptInput,
+      'content' => $chatInput,
     ];
-    $chatResponse = $this->chatCompletions->getChatCompletion($model, $messages);
 
-    $chatHistory .= $this->t('YOU SAY:') . PHP_EOL . PHP_EOL . $chatgptInput;
-    $chatHistory .= PHP_EOL . PHP_EOL . PHP_EOL . $this->t('CHATGPT SAYS:') . PHP_EOL . PHP_EOL . $chatResponse;
+    // Send the messages and get ChatGTP response.
+    $chatResponse = $this->chatCompletions->getChatCompletion(
+      $messageHistory,
+      $gptModel,
+      $gptTemperature,
+      $gptMaximumTokens,
+      $gptTopP,
+      $gptFrequencyPenalty,
+      $gptPresencePenalty 
+    );
+    // Write the user question in the chat textarea.
+    $chatMessages .= $this->t('YOU SAY:') . $this->newLines(2) . $chatInput;
+    // Write the ChatGTP response in the chat textarea.
+    $chatMessages .= $this->newLines(3) . $this->t('CHATGPT SAYS:') . $this->newLines(2). $chatResponse . $this->newLines(3);
+
+    // Add the response to the history.
+    $messageHistory[] = [
+      'role' => 'assistant',
+      'content' => $chatResponse,
+    ];
+    // Save the cache.
+    $this->cache->set($this->cacheName, $messageHistory, time() + 900);
 
     // Update the textarea value.
-    $form['chatgpt_chat_container']['chatgpt_chat']['#value'] = $chatHistory;
+    $form['chatgpt_chat_container']['chatgpt_chat']['#value'] = $chatMessages;
 
     // Replace the textarea with the new content.
     $response->addCommand(new HtmlCommand('.form-item-chatgpt-chat', $form['chatgpt_chat_container']['chatgpt_chat']));
@@ -235,10 +295,14 @@ class ChatGptChatForm extends FormBase {
   }
 
   /**
-   * {@inheritdoc}
+   * Returns new lines.
    */
-  public function removeCallback(array &$form, FormStateInterface $form_state) {
-    $form_state->setRebuild();
+  private function newLines($qty) {
+    $output = '';
+    for ($i = 0; $i < $qty; $i++) {
+      $output .= PHP_EOL;
+    }
+    return $output;
   }
 
 }
