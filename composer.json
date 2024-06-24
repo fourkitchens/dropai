@@ -16,7 +16,6 @@
         "phpoffice/phppresentation": "^1.0",
         "phpoffice/phpword": "^1.2",
         "smalot/pdfparser": "^2.10"
-        "google-gemini-php/client": "dev-main"
     },
     "config": {
         "allow-plugins": {

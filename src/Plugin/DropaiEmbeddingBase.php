@@ -95,9 +95,6 @@ abstract class DropaiEmbeddingBase extends PluginBase implements DropaiEmbedding
    * @return void
    */
   protected function validateModel(string $model) {
-    if(empty($model)) {
-      throw new \Exception('A model must be specified to generate embeddings.');
-    }
     if(!in_array($model, array_keys($this->models))) {
       throw new \Exception('An invalid model was selected for this service.');
     }
