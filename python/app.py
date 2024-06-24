@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from tokens import num_tokens, encoded_from_string
 from bs4 import BeautifulSoup as bs
 from semantic_text_splitter import TextSplitter
+from doc_to_text import getDocContent
 
 app = Flask(__name__)
 
@@ -28,6 +29,12 @@ def home():
           <ul>
             <li>string - A string of HTML to split</li>
             <li>max_characters - The maximum number of characters to split on</li>
+          </ul>
+        </li>
+        <li>
+          /document-to-text - POST JSON with:
+          <ul>
+            <li>path - A path to a local document to parse and return plain text content</li>
           </ul>
         </li>
       </ul>
@@ -57,6 +64,13 @@ def splitter():
     splitter = TextSplitter(int(data['max_characters']))
     chunks = splitter.chunks(data['string'])
     response = {'status': 'success', 'data': chunks}
+    return jsonify(response)
+
+@app.route('/document-to-text', methods=['POST'])
+def docToText():
+    data = request.get_json()
+    content = getDocContent(data['path'])
+    response = {'status': 'success', 'data': content}
     return jsonify(response)
 
 if __name__ == '__main__':

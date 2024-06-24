@@ -1,0 +1,5 @@
+name: 'DropAI Media Python'
+type: module
+description: 'Adds a tab to media entities to parse the media for plain text for use with AI ingestion'
+package: 'DropAI'
+core_version_requirement: ^10 || ^11

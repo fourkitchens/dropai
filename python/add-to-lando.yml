@@ -10,6 +10,9 @@ services:
       - 'pip install -r python/requirements.txt'
     run:
       - python python/app.py
+    build_as_root:
+      - apt-get update
+      - apt-get install -y libgl1-mesa-glx libreoffice
 proxy:
   python:
     - python.lndo.site:5001
