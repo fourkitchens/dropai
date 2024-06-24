@@ -15,6 +15,10 @@ services:
   plugin.manager.dropai_embedding:
     class: Drupal\dropai\Plugin\DropaiEmbeddingManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage loader plugins.
+  plugin.manager.dropai_loader:
+    class: Drupal\dropai\Plugin\DropaiLoaderManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   # Manage processor plugins.
   plugin.manager.dropai_preprocessor:
     class: Drupal\dropai\Plugin\DropaiPreprocessorManager
