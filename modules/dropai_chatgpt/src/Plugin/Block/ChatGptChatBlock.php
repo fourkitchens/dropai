@@ -6,6 +6,7 @@ use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\dropai_chatgpt\Form\ChatGptChatForm;
 
 /**
  * Provides a 'Chat' block.
@@ -59,7 +60,9 @@ class ChatGptChatBlock extends BlockBase implements ContainerFactoryPluginInterf
    */
   public function build() {
     $build = [];
-    $build['content'] = $this->formBuilder->getForm('Drupal\dropai_chatgpt\Form\ChatGptChatForm');
+    $form = $this->formBuilder->getForm(ChatGptChatForm::class);
+
+    $build['form'] = $form;
     $build['#cache'] = [
       'max-age' => 0,
     ];

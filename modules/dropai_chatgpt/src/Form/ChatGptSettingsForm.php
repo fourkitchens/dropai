@@ -95,14 +95,14 @@ class ChatGptSettingsForm extends ConfigFormBase {
     $form['chatgpt_instructions'] = [
       '#type' => 'textarea',
       '#title' => $this->t('System Instructions'),
-      '#description' => $this->t('Write the instructions for the ChatGPT module.'),
+      '#description' => $this->t('Write the special instructions to start the Chat with GPT.'),
       '#default_value' => $config->get('chatgpt_instructions'),
-      '#required' => TRUE,
+      '#required' => FALSE,
     ];
 
-    $form['chatgpt_model'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Model'),
+    $form['chatgpt_models'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Models'),
       '#description' => $this->t(
         'The OpenAI API is powered by a diverse set of models with different capabilities and price points. See the @openai_models_link.',
         [
@@ -110,7 +110,16 @@ class ChatGptSettingsForm extends ConfigFormBase {
         ]
       ),
       '#options' => $models,
-      '#default_value' => $config->get('chatgpt_model') ?: 'gpt-4o',
+      '#default_value' => $config->get('chatgpt_models') ?: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o'],
+      '#required' => TRUE,
+    ];
+
+    $form['chatgpt_default_model'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Default Model'),
+      '#description' => $this->t('Select the default model.'),
+      '#options' => $models,
+      '#default_value' => $config->get('chatgpt_default_model') ?: 'gpt-4o',
       '#required' => TRUE,
     ];
 
@@ -186,9 +195,14 @@ class ChatGptSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    $chatgpt_models = array_filter($form_state->getValue('chatgpt_models'), function($val) {
+      return $val !== 0;
+    });
+
     $this->config('dropai_chatgpt.settings')
       ->set('chatgpt_instructions', $form_state->getValue('chatgpt_instructions'))
-      ->set('chatgpt_model', $form_state->getValue('chatgpt_model'))
+      ->set('chatgpt_models', array_values($chatgpt_models))
+      ->set('chatgpt_default_model', $form_state->getValue('chatgpt_default_model'))
       ->set('chatgpt_temperature', $form_state->getValue('chatgpt_temperature'))
       ->set('chatgpt_maximum_tokens', $form_state->getValue('chatgpt_maximum_tokens'))
       ->set('chatgpt_top_p', $form_state->getValue('chatgpt_top_p'))

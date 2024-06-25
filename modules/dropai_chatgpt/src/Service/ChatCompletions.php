@@ -88,6 +88,8 @@ class ChatCompletions {
       foreach ($json['data'] as $model) {
         $output[$model['id']] = $model['id'];
       }
+
+      ksort($output);
     }
     else {
       $this->loggerFactory->get('dropai_chatgpt')->error('Empty models.');
@@ -101,12 +103,11 @@ class ChatCompletions {
    *
    * @param array $messages
    * @param string $model
-   * @param [type] $gptTemperature
-   * @param [type] $gptMaximumTokens
-   * @param [type] $gptTopP
-   * @param [type] $gptFrequencyPenalty
-   * @param [type] $gptPresencePenalty
-   * @return void
+   * @param $gptTemperature
+   * @param $gptMaximumTokens
+   * @param $gptTopP
+   * @param $gptFrequencyPenalty
+   * @param $gptPresencePenalty
    */
   public function getChatCompletion(
     array $messages,
