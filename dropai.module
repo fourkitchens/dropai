@@ -6,6 +6,7 @@
  */
 
  use Drupal\Core\Entity\EntityInterface;
+ use Drupal\dropai\Traits\DropaiEmbeddingTrait;
 
 /**
  * Implements hook_entity_type_build().
@@ -47,8 +48,12 @@ function dropai_add_item_to_queue_worker(EntityInterface $entity, string $action
   $entity_type = $entity->getEntityTypeId();
   $entity_bundle = $entity->bundle();
 
+  $checker = new class {
+    use DropaiEmbeddingTrait;
+  };
+
   // Check by entity type and bundle if the entity allows indexing.
-  if (!dropai_check_entity_allows_indexing($entity_type, $entity_bundle)) {
+  if (!$checker->dropai_check_entity_allows_indexing($entity_type, $entity_bundle)) {
     return;
   }
 
@@ -60,57 +65,32 @@ function dropai_add_item_to_queue_worker(EntityInterface $entity, string $action
     'action' => $action,
   ];
 
+  // Check if the entity is already in the queue.
+  if (dropai_check_data_exist_in_queue('dropai_embedding_queue_worker', $item)) {
+    return;
+  }
+
   // Insert the data into the queue.
   $queue = \Drupal::service('queue')->get('dropai_embedding_queue_worker');
   $queue->createItem($item);
 }
 
 /**
- * This function checks if the entity allows indexing.
+ * This function checks if the data exists in the queue.
  */
-function dropai_check_entity_allows_indexing(string $entity_type, string $entity_bundle) {
-  $dropai_indexing_settings = \Drupal::service('config.factory')->get('dropai.indexing_settings');
-  if (is_null($dropai_indexing_settings)) {
-    // The settings are not defined yet.
-    return FALSE;
-  }
+function dropai_check_data_exist_in_queue(string $queueWorkerName, array $data) {
+  $data = serialize($data);
+  $database = \Drupal::database();
 
-  $dropai_indexing_settings = $dropai_indexing_settings->getRawData();
-  if (empty($dropai_indexing_settings) || !isset($dropai_indexing_settings['entities'])) {
-    // The entities settings is empty.
-    return FALSE;
-  }
+  $query = $database->select('queue', 'q')
+    ->fields('q', ['data'])
+    ->condition('q.name', $queueWorkerName)
+    ->condition('q.data', $data)
+    ->range(0, 1);
 
-  $indexing_entities = $dropai_indexing_settings['entities'];
-  if (!array_key_exists($entity_type, $indexing_entities)) {
-    // The entity type is outside the global entities settings.
-    return FALSE;
-  }
+  $result = $query->execute()->fetchField();
 
-  $entiy_settings = $indexing_entities[$entity_type];
-  if ($entiy_settings['index_type'] === 'exclude') {
-    if (in_array($entity_bundle, $entiy_settings['bundles'])) {
-      // It is FALSE because the bundle is one of the excluded items.
-      return FALSE;
-    }
-    else {
-      // It is TRUE because the bundle is NOT one of the excluded items.
-      return TRUE;
-    }
-  }
-  elseif ($entiy_settings['index_type'] === 'include') {
-    if (in_array($entity_bundle, $entiy_settings['bundles'])) {
-      // It is TRUE because the bundle is one of the included items.
-      return TRUE;
-    }
-    else {
-      // It is FALSE because the bundle is not one of the included items.
-      return FALSE;
-    }
-  }
-
-  // The index_type is unknown.
-  return FALSE;
+  return !empty($result);
 }
 
 /**

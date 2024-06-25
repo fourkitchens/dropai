@@ -6,6 +6,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Queue\QueueWorkerBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\dropai\Service\EntityUpdate;
+use Drupal\dropai\Traits\DropaiEmbeddingTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -18,6 +19,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * )
  */
 class DropaiEmbeddingQueueWorker extends QueueWorkerBase implements ContainerFactoryPluginInterface {
+
+  use DropaiEmbeddingTrait;
 
   /**
    * The entity type manager.
@@ -60,19 +63,23 @@ class DropaiEmbeddingQueueWorker extends QueueWorkerBase implements ContainerFac
    */
   public function processItem($data) {
     if (isset($data['entity_id']) && isset($data['entity_type'])) {
-      $entity = $this->entityTypeManager->getStorage($data['entity_type'])->load($data['entity_id']);
-      if (is_null($entity)) {
+      // Check if the entity allows indexing.
+      if (!$this->dropai_check_entity_allows_indexing($data['entity_type'], $data['entity_bundle'])) {
         return;
       }
 
       switch ($data['action']) {
         case 'insert':
         case 'update':
+          $entity = $this->entityTypeManager->getStorage($data['entity_type'])->load($data['entity_id']);
+          if (is_null($entity)) {
+            return;
+          }
           $this->entityUpdate->upsertDocument($entity);
           break;
-  
+
         case 'remove':
-          $this->entityUpdate->removeDocument($entity);
+          $this->entityUpdate->removeDocument($data['entity_id'], $data['entity_type']);
           break;
       }
     }

@@ -68,10 +68,10 @@ class EntityUpdate {
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   A content entity in Drupal.
    */
-  public function removeDocument(EntityInterface $entity) {
+  public function removeDocument(int $entity_id, string $entity_type) {
     $this->logger->notice(
       'Removed @type @id from vector database.',
-      ['@type' => $entity->getEntityTypeId(), '@id' => $entity->id()]
+      ['@type' => $entity_type, '@id' => $entity_id]
     );
   }
 
