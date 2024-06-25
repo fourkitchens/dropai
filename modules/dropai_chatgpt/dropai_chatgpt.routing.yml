@@ -6,3 +6,12 @@ dropai_chatgpt.settings:
     _title: 'ChatGPT Global Settings'
   requirements:
     _permission: 'administer chatgpt'
+
+# Chat page.
+dropai_chatgpt.chat:
+  path: '/chatgpt'
+  defaults:
+    _form: '\Drupal\dropai_chatgpt\Form\ChatGptChatForm'
+    _title: 'GPT Chat'
+  requirements:
+    _permission: 'access content'
