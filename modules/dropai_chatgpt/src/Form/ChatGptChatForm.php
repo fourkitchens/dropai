@@ -83,23 +83,17 @@ class ChatGptChatForm extends FormBase {
       '#options' => array_combine($models, $models),
       '#default_value' => $this->chatgptSettings->get('chatgpt_default_model') ?: 'gpt-4o',
       '#required' => TRUE,
+      '#ajax' => [
+        'callback' => '::ajaxSetMaxTokensCallback',
+        'event' => 'change',
+        'wrapper' => 'max-tokens-wrapper',
+      ],
     ];
 
     $form['chatgpt_settings_container']['chatgpt_advanced_settings_container'] = [
       '#type' => 'details',
       '#title' => t('Advanced Settings'),
       '#open' => FALSE,
-    ];
-
-    $form['chatgpt_settings_container']['chatgpt_advanced_settings_container']['chatgpt_temperature'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Temperature'),
-      '#description' => $this->t('Lower values for temperature result in more consistent outputs (e.g. 0.2), while higher values generate more diverse and creative results (e.g. 1.0). Select a temperature value based on the desired trade-off between coherence and creativity for your specific application. The temperature can range is from 0 to 2.'),
-      '#min' => 0,
-      '#max' => 2,
-      '#step' => .01,
-      '#default_value' => $this->chatgptSettings->get('chatgpt_temperature') ?: 1,
-      '#required' => TRUE,
     ];
 
     $form['chatgpt_settings_container']['chatgpt_advanced_settings_container']['chatgpt_maximum_tokens'] = [
@@ -110,6 +104,19 @@ class ChatGptChatForm extends FormBase {
       '#max' => 16384,
       '#step' => 1,
       '#default_value' => $this->chatgptSettings->get('chatgpt_maximum_tokens') ?: 256,
+      '#required' => TRUE,
+      '#prefix' => '<div id="max-tokens-wrapper">',
+      '#suffix' => '</div>',
+    ];
+
+    $form['chatgpt_settings_container']['chatgpt_advanced_settings_container']['chatgpt_temperature'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Temperature'),
+      '#description' => $this->t('Lower values for temperature result in more consistent outputs (e.g. 0.2), while higher values generate more diverse and creative results (e.g. 1.0). Select a temperature value based on the desired trade-off between coherence and creativity for your specific application. The temperature can range is from 0 to 2.'),
+      '#min' => 0,
+      '#max' => 2,
+      '#step' => .01,
+      '#default_value' => $this->chatgptSettings->get('chatgpt_temperature') ?: 1,
       '#required' => TRUE,
     ];
 
@@ -268,9 +275,9 @@ class ChatGptChatForm extends FormBase {
     );
 
     // Write the user question in the chat textarea.
-    $chatMessages .= $this->t('YOU SAY:') . $this->newLines(2) . $chatInput;
+    $chatMessages .= $this->formatMessage('client', $chatInput);
     // Write the ChatGTP response in the chat textarea.
-    $chatMessages .= $this->newLines(3) . $this->t('CHATGPT SAYS:') . $this->newLines(2). $chatResponse . $this->newLines(3);
+    $chatMessages .= $this->formatMessage('gpt', $chatResponse);
 
     // Add the response to the history.
     $messageHistory[] = [
@@ -285,13 +292,66 @@ class ChatGptChatForm extends FormBase {
   }
 
   /**
-   * Returns new lines.
+   * Ajax function: Set max tokens.
+   *
+   * @param array $form
+   * @param FormStateInterface $form_state
+   * @return void
    */
-  private function newLines($qty) {
-    $output = '';
-    for ($i = 0; $i < $qty; $i++) {
-      $output .= PHP_EOL;
+  public function ajaxSetMaxTokensCallback(array &$form, FormStateInterface $form_state) {
+    $model = $form_state->getValue('chatgpt_model');
+    $maxTokens = $form_state->getValue('chatgpt_maximum_tokens');
+
+    switch ($model) {
+      case 'gpt-4':
+      case 'gpt-4-0613':
+        $maxValue = 8192;
+        $defValue = 4096;
+        break;
+
+      case 'gpt-4-turbo':
+      case 'gpt-4-turbo-2024-04-09':
+      case 'gpt-4-turbo-preview':
+      case 'gpt-4-0125-preview':
+      case 'gpt-4-1106-preview':
+      case 'gpt-4o':
+      case 'gpt-4o-2024-05-13':
+        $maxValue = 128000;
+        $defValue = 4096;
+        break;
+
+      case 'gpt-3.5-turbo':
+      case 'gpt-3.5-turbo-0125':
+      case 'gpt-3.5-turbo-1106':
+        $maxValue = 16384;
+        $defValue = 4096;
+        break;
+
+      case 'gpt-3.5-turbo-instruct':
+        $maxValue = 4096;
+        $defValue = 1024;
+        break;
+
+      default:
+        $maxValue = 1024;
+        $defValue = 512;
     }
+
+    $form['chatgpt_settings_container']['chatgpt_advanced_settings_container']['chatgpt_maximum_tokens']['#max'] = $maxValue;
+    if ($maxTokens > $defValue) {
+      $form['chatgpt_settings_container']['chatgpt_advanced_settings_container']['chatgpt_maximum_tokens']['#value'] = $defValue;
+    }
+
+    return $form['chatgpt_settings_container']['chatgpt_advanced_settings_container']['chatgpt_maximum_tokens'];
+  }
+
+  /**
+   * Set message format.
+   */
+  private function formatMessage($user, $message) {
+    $output = '';
+    $output .= $user === 'client' ? $this->t('YOU SAY:') : $this->t('CHATGPT SAYS:');
+    $output .= PHP_EOL . PHP_EOL . $message . PHP_EOL . PHP_EOL . PHP_EOL;
     return $output;
   }
 
