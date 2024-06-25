@@ -1,0 +1,6 @@
+# Add DropAI Mistral settings page to the admin menu.
+dropai_mistral.settings:
+  route_name: dropai_mistral.settings
+  parent: dropai.admin
+  title: Mistral Settings
+  description: 'Configure Mistral Service settings.'

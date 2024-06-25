@@ -1,0 +1,6 @@
+# Add DropAI VoyageAI settings page to the admin menu.
+dropai_voyageai.settings:
+  route_name: dropai_voyageai.settings
+  parent: dropai.admin
+  title: VoyageAI Settings
+  description: 'Configure VoyageAI Service settings.'

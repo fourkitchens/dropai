@@ -1,0 +1,8 @@
+# Set API keys and module settings.
+dropai_voyageai.settings:
+  path: '/admin/config/dropai/voyageai'
+  defaults:
+    _form: '\Drupal\dropai_voyageai\Form\SettingsForm'
+    _title: 'DropAI VoyageAI Settings'
+  requirements:
+    _permission: 'administer dropai'
