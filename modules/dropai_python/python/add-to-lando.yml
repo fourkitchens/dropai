@@ -3,6 +3,10 @@ tooling:
     service: python
   python:
     service: python
+  flask:
+    service: python
+    description: Start the Python Flask app for local Python access in Drupal
+    cmd: "python web/modules/contrib/dropai/modules/dropai_python/python/app.py"
 services:
   python:
     type: python:3.9
@@ -11,6 +15,9 @@ services:
     build_as_root:
       - apt-get update
       - apt-get install -y libgl1-mesa-glx libreoffice
+    scanner:
+      okCodes:
+        - 502
 proxy:
   python:
     - python.lndo.site:5001

@@ -6,9 +6,9 @@ This module allows for Python interaction from Drupal to pre-process, tokenize, 
 
 Since this module requires Python to be installed alongside Drupal, changes are required to your local Lando configuration.
 
-1. Open `python/add-to-lando.yml` and copy the required key/values into your root `.lando.yml` or `.lando.local.yml`. Save the file.
+1. Open `python/add-to-lando.yml` and copy the key/values into the appropriate areas of your root `.lando.yml` or `.lando.local.yml`. Save the file.
 2. Run `lando rebuild` to get the new containers and configuration.
-3. Once finished, from the root of the project run `lando python web/modules/contrib/dropai/modules/dropai_python/python/app.py`
+3. Once finished, from the root of the project run `lando flask`
 4. This will start the local Python Flask app. You may open another terminal session to perform other terminal operations while the Flask app runs in its own terminal.
 5. Enable the `dropai_python` module in Drupal as normal via the UI or `lando drush en dropai_python`
 6. Visit the settings page at `/admin/config/dropai/python` and verify that the Python server is set to the same one in your Lando configuration under `proxy`.
