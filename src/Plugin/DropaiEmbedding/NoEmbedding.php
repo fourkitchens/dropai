@@ -17,7 +17,7 @@ class NoEmbedding extends DropaiEmbeddingBase {
   /**
    * {@inheritDoc}
    */
-  public function getEmbeddings(string $text, string $model = ''): array {
+  public function getEmbeddings(array $texts, string $model = ''): array {
     return [];
   }
 

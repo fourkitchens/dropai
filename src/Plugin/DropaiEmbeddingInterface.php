@@ -30,7 +30,7 @@ interface DropaiEmbeddingInterface extends PluginInspectionInterface {
    * @return array
    *   TBD.
    */
-  public function getEmbeddings(string $text, string $model): array;
+  // public function getEmbedding(string $text, string $model): array;
 
   /**
    * Convert an array of text string into a set of vector embeddings.
@@ -43,6 +43,6 @@ interface DropaiEmbeddingInterface extends PluginInspectionInterface {
    * @return array
    *   TBD.
    */
-  public function getEmbeddingsMultiple(array $pieces, string $model): array;
+  public function getEmbeddings(array $pieces, string $model): array;
 
 }

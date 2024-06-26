@@ -1,0 +1,8 @@
+# Set API keys and module settings.
+dropai_mistral.settings:
+  path: '/admin/config/dropai/mistral'
+  defaults:
+    _form: '\Drupal\dropai_mistral\Form\SettingsForm'
+    _title: 'DropAI Mistral Settings'
+  requirements:
+    _permission: 'administer dropai'

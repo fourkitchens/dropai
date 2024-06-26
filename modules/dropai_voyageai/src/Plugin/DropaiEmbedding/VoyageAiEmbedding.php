@@ -1,38 +1,40 @@
 <?php
 
-namespace Drupal\dropai_gemini\Plugin\DropaiEmbedding;
+namespace Drupal\dropai_voyageai\Plugin\DropaiEmbedding;
 
 use Drupal\dropai\Plugin\DropaiEmbeddingBase;
 use Psr\Http\Message\ResponseInterface;
 
-
 /**
- * Provides a DropAI Embedding plugin using the Gemini API.
+ * Provides a DropAI Embedding plugin using the VoyageAI API.
+ *
+ * @see: https://docs.voyageai.com/reference/embeddings-api.
  *
  * @DropaiEmbedding(
- *   id = "gemini",
- *   label = @Translation("Google Gemini")
+ *   id = "voyageai",
+ *   label = @Translation("VoyageAI")
  * )
  */
-class GeminiEmbedding extends DropaiEmbeddingBase {
+class VoyageAiEmbedding extends DropaiEmbeddingBase {
 
   public $models = [
-    'embedding-001' => 'Embedding 001',
-    'text-embedding-004' => 'Text Embedding 004',
+    'voyage-2' => 'voyage-2',
+    'voyage-large-2' => 'voyage-large-2',
+    'voyage-finance-2' => 'voyage-finance-2',
+    'voyage-multilingual-2' => 'voyage-multilingual-2',
+    'voyage-law-2' => 'voyage-law-2',
+    'voyage-code-2' => 'voyage-code-2',
   ];
+
   /**
    * {@inheritDoc}
    */
   public function getEmbeddings(array $texts, string $model): array {
     try {
       $this->validateModel($model);
-      $apiKey = $this->getApiKey('dropai_gemini.settings', 'api_key');
-      $embeddings = [];
-      foreach ($texts as $text) {
-        $response = $this->makeApiRequest($apiKey, $text, $model);
-        $embeddings[] = $this->extractEmbeddings($response);
-      }
-      return $embeddings;
+      $apiKey = $this->getApiKey('dropai_voyageai.settings', 'api_key');
+      $response = $this->makeApiRequest($apiKey, $texts, $model);
+      return $this->extractEmbeddings($response);
     }
     catch (\Exception $e) {
       $this->logger->error('An error occurred: ' . $e->getMessage());
@@ -56,20 +58,15 @@ class GeminiEmbedding extends DropaiEmbeddingBase {
    * @throws \GuzzleHttp\Exception\RequestException
    *   If the request fails.
    */
-  protected function makeApiRequest(string $apiKey, string $text, string $model) {
-    $apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:embedContent";
-    return $this->httpClient->post($apiEndpoint, [
+  protected function makeApiRequest(string $apiKey, array $texts, string $model) {
+    return $this->httpClient->post('https://api.voyageai.com/v1/embeddings', [
       'headers' => [
+        'Authorization' => 'Bearer ' . $apiKey,
         'Content-Type' => 'application/json',
       ],
-      'query' => [
-        'key' => $apiKey,
-      ],
       'json' => [
-        'model' => "models/{$model}",
-        'content' => [
-          'parts' => ['text' => $text],
-        ],
+        'input' => $texts,
+        'model' => $model,
       ],
     ]);
   }
@@ -88,10 +85,16 @@ class GeminiEmbedding extends DropaiEmbeddingBase {
    */
   protected function extractEmbeddings(ResponseInterface $response): array {
     $data = json_decode($response->getBody()->getContents(), true);
-    if (!isset($data['embedding']['values'])) {
-      throw new \Exception('Invalid response structure.');
+    if (!isset($data['data'])) {
+      throw new \Exception('Invalid response structure: "data" field missing');
     }
-    return $data['embedding']['values'];
+    $embeddings = array_map(function($item) {
+      return $item['embedding'];
+    }, $data['data']);
+    if (empty($embeddings)) {
+      throw new \Exception('No embedding values returned for the input text.');
+    }
+    return $embeddings;
   }
 
 }
