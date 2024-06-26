@@ -132,6 +132,18 @@ class IndexingSettingsForm extends ConfigFormBase {
         '#default_value' => $config->get('entities')[$entity_type_id]['bundles'] ?? [],
       ];
     }
+
+    // Make me gooder.
+    $dropaiStorageManager = \Drupal::service('plugin.manager.dropai_storage');
+    $form['storage_settings'] = [
+      '#type' => 'container',
+    ];
+    // @todo: Dont forget to save me.
+    $form['storage_settings']['storage_plugin'] = [
+      '#type' => 'select',
+      '#options' => $dropaiStorageManager->getPluginOptions(),
+    ];
+
     return parent::buildForm($form, $form_state);
   }
 

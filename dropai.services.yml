@@ -37,6 +37,10 @@ services:
   plugin.manager.dropai_tokenizer:
     class: Drupal\dropai\Plugin\DropaiTokenizerManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage storage plugins.
+  plugin.manager.dropai_storage:
+    class: Drupal\dropai\Plugin\DropaiStorageManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   # Define a service to build a Factory to the document Reader.
   dropai.document_reader.factory:
     class: Drupal\dropai\Service\DocReaderFactory
