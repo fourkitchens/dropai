@@ -140,15 +140,11 @@ class EntityUpdate {
     $embedding = $this->dropaiEmbeddingManager->createInstance($embedding_id);
     $embeddings = $embedding->getEmbeddings($chunks, $embedding_model);
 
-    // Render the vector.
-    $vector = array_map(function($embedding) {
-      return json_encode($embedding);
-    }, $embeddings);
-
     // Set the metadata values.
     $metadata = [];
-    $metadata['entity_type'] = $entity->getEntityTypeId();
     $metadata['entity_id'] = $entity->id();
+    $metadata['entity_type'] = $entity->getEntityTypeId();
+    $metadata['entity_bundle'] = $entity->bundle();
     $metadata['updated'] = $entity->getChangedTime();
     // Add more fields if the entity is a Node.
     if ($entity instanceof Node) {
@@ -159,10 +155,17 @@ class EntityUpdate {
     }
     // Render the data.
     $data = [
-      'id' => $entity->getEntityTypeId() . '-' . $entity->id(),
-      'values' => $vector[0],
-      'metadata' => $metadata,
+      'vectors' => [
+        'id' => $entity->getEntityTypeId() . ':' . $entity->id() . ':' . $entity->bundle(),
+        'values' => $embeddings[0],
+        'metadata' => $metadata,
+      ],
+      'namespace' => $entity->getEntityTypeId(),
     ];
+
+    // TODO: Improve the call to the services.
+    $pinecone_service = \Drupal::service('dropai_pinecone.service_embedding_provider');
+    $pinecone_service->upsert($data);
 
     $this->loggerFactory->get('dropai')->notice(
       'Upserted @type @id in vector database: @vector',

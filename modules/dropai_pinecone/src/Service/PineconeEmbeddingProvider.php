@@ -78,8 +78,7 @@ class PineconeEmbeddingProvider implements DropaiEmbeddingProviderInterface {
       return;
     }
 
-    $vectors = ['vectors' => $data];
-    $this->pineconeUpsert($vectors);
+    $this->pineconeUpsert($data);
   }
 
   /**
