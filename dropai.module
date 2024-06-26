@@ -6,6 +6,7 @@
  */
 
  use Drupal\Core\Entity\EntityInterface;
+ use Drupal\dropai\Traits\DropaiEmbeddingTrait;
 
 /**
  * Implements hook_entity_type_build().
@@ -22,21 +23,74 @@ function dropai_entity_type_build(array &$entity_types) {
  * Implements hook_entity_insert().
  */
 function dropai_entity_insert(EntityInterface $entity) {
-  \Drupal::service('dropai.entity_update')->upsertDocument($entity);
+  dropai_add_item_to_queue_worker($entity, 'insert');
 }
 
 /**
  * Implements hook_entity_update().
  */
 function dropai_entity_update(EntityInterface $entity) {
-  \Drupal::service('dropai.entity_update')->upsertDocument($entity);
+  dropai_add_item_to_queue_worker($entity, 'update');
 }
 
 /**
  * Implements hook_entity_update().
  */
 function dropai_entity_delete(EntityInterface $entity) {
-  \Drupal::service('dropai.entity_update')->removeDocument($entity);
+  dropai_add_item_to_queue_worker($entity, 'remove');
+}
+
+/**
+ * This function adds an item to the queue worker.
+ */
+function dropai_add_item_to_queue_worker(EntityInterface $entity, string $action) {
+  $entity_id = $entity->id();
+  $entity_type = $entity->getEntityTypeId();
+  $entity_bundle = $entity->bundle();
+
+  $checker = new class {
+    use DropaiEmbeddingTrait;
+  };
+
+  // Check by entity type and bundle if the entity allows indexing.
+  if (!$checker->dropai_check_entity_allows_indexing($entity_type, $entity_bundle)) {
+    return;
+  }
+
+  // Generates the queue data.
+  $item = [
+    'entity_id' => $entity_id,
+    'entity_type' => $entity_type,
+    'entity_bundle' => $entity_bundle,
+    'action' => $action,
+  ];
+
+  // Check if the entity is already in the queue.
+  if (dropai_check_data_exist_in_queue('dropai_embedding_queue_worker', $item)) {
+    return;
+  }
+
+  // Insert the data into the queue.
+  $queue = \Drupal::service('queue')->get('dropai_embedding_queue_worker');
+  $queue->createItem($item);
+}
+
+/**
+ * This function checks if the data exists in the queue.
+ */
+function dropai_check_data_exist_in_queue(string $queueWorkerName, array $data) {
+  $data = serialize($data);
+  $database = \Drupal::database();
+
+  $query = $database->select('queue', 'q')
+    ->fields('q', ['data'])
+    ->condition('q.name', $queueWorkerName)
+    ->condition('q.data', $data)
+    ->range(0, 1);
+
+  $result = $query->execute()->fetchField();
+
+  return !empty($result);
 }
 
 /**

@@ -1,0 +1,7 @@
+services:
+  # Define a embedding provider.
+  dropai_pinecone.service_embedding_provider:
+    class: Drupal\dropai_pinecone\Service\PineconeEmbeddingProvider
+    arguments: ['@config.factory', '@logger.factory']
+    tags:
+      - { name: dropai_service_embedding_provider }

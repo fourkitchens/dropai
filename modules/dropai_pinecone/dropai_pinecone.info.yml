@@ -1,0 +1,6 @@
+name: 'DropAI Pinecone'
+type: module
+description: "Pinecone is a vector database that helps power AI for the world's best companies."
+package: 'DropAI'
+configure: dropai_pinecone.settings
+core_version_requirement: ^10 || ^11

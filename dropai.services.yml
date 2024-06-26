@@ -2,9 +2,14 @@ services:
   # Manage entity update and trigger updates to the vector database.
   dropai.entity_update:
     class: Drupal\dropai\Service\EntityUpdate
-    arguments:
-      - '@config.factory'
-      - '@logger.channel.default'
+    arguments: [
+      '@config.factory',
+      '@logger.factory',
+      '@plugin.manager.dropai_embedding',
+      '@plugin.manager.dropai_loader',
+      '@plugin.manager.dropai_preprocessor',
+      '@plugin.manager.dropai_splitter',
+    ]
   # Add and alter existing routes - used to add AI Inspector to entities.
   dropai.route_subscriber:
     class: Drupal\dropai\Routing\RouteSubscriber
