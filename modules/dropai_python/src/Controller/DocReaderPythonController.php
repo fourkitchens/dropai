@@ -1,7 +1,8 @@
 <?php
 
-namespace Drupal\dropai_media_python\Controller;
+namespace Drupal\dropai_python\Controller;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\media\Entity\Media;
@@ -28,16 +29,30 @@ class DocReaderPythonController extends ControllerBase {
   protected $fileSystem;
 
   /**
+   * Configuration Factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $pythonConfig;
+
+  /**
    * Constructs a new DocReaderFactory object.
    *
    * @param \Drupal\Core\File\FileSystemInterface $fileSystem
    *   The FileSystem Interface.
    * @param \GuzzleHttp\Client $http_client
    *   The Guzzle HTTP Client.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The configuration factory interface.
    */
-  public function __construct(FileSystemInterface $fileSystem, Client $http_client) {
+  public function __construct(
+    FileSystemInterface $fileSystem,
+    Client $http_client,
+    ConfigFactoryInterface $config_factory
+  ) {
     $this->fileSystem = $fileSystem;
     $this->httpClient = $http_client;
+    $this->pythonConfig = $config_factory->get('dropai_python.settings');
   }
 
   /**
@@ -50,6 +65,7 @@ class DocReaderPythonController extends ControllerBase {
     return new static(
       $container->get('file_system'),
       $container->get('http_client'),
+      $container->get('config.factory'),
     );
   }
 
@@ -86,8 +102,12 @@ class DocReaderPythonController extends ControllerBase {
     ];
   }
 
+  /**
+   * Gets document content based on mimetype.
+   */
   private function getDocumentContent($path) {
-    $url = 'http://python.lndo.site/document-to-text';
+    $basePythonURL = $this->pythonConfig->get('local_python_flask_url');
+    $url = "$basePythonURL/document-to-text";
     try {
       $response = $this->httpClient->post($url, [
         'json' => [
@@ -97,7 +117,7 @@ class DocReaderPythonController extends ControllerBase {
       $body = json_decode($response->getBody()->__toString(), TRUE)['data'];
     }
     catch (\Exception $e) {
-      $body = $this->t('An error occurred: @message', ['@message' => $e->getMessage()]);
+      $body = $this->t('An error occurred. Make sure the local Python Flask app is running. (from the root, run: lando python web/modules/contrib/dropai/modules/dropai_python/python/app.py) Message: @message', ['@message' => $e->getMessage()]);
     }
     return $body;
   }

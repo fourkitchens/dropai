@@ -7,9 +7,7 @@ services:
   python:
     type: python:3.9
     build:
-      - 'pip install -r python/requirements.txt'
-    run:
-      - python python/app.py
+      - 'pip install -r web/modules/contrib/dropai/modules/dropai_python/python/requirements.txt'
     build_as_root:
       - apt-get update
       - apt-get install -y libgl1-mesa-glx libreoffice
