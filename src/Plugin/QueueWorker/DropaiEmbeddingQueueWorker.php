@@ -64,23 +64,21 @@ class DropaiEmbeddingQueueWorker extends QueueWorkerBase implements ContainerFac
   public function processItem($data) {
     if (isset($data['entity_id']) && isset($data['entity_type'])) {
       // Check if the entity allows indexing.
-      if (!$this->dropai_check_entity_allows_indexing($data['entity_type'], $data['entity_bundle'])) {
-        return;
-      }
+      if ($this->dropai_check_entity_allows_indexing($data['entity_type'], $data['entity_bundle'])) {
+        switch ($data['action']) {
+          case 'insert':
+          case 'update':
+            $entity = $this->entityTypeManager->getStorage($data['entity_type'])->load($data['entity_id']);
+            if (is_null($entity)) {
+              return;
+            }
+            $this->entityUpdate->upsertEntiy($entity);
+            break;
 
-      switch ($data['action']) {
-        case 'insert':
-        case 'update':
-          $entity = $this->entityTypeManager->getStorage($data['entity_type'])->load($data['entity_id']);
-          if (is_null($entity)) {
-            return;
-          }
-          $this->entityUpdate->upsertDocument($entity);
-          break;
-
-        case 'remove':
-          $this->entityUpdate->removeDocument($data['entity_id'], $data['entity_type']);
-          break;
+          case 'remove':
+            $this->entityUpdate->deleteEntity($data['entity_id'], $data['entity_type']);
+            break;
+        }
       }
     }
   }
