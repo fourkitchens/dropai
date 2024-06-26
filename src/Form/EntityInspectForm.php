@@ -357,7 +357,7 @@ class EntityInspectForm extends FormBase {
       '#default_value' => 'none',
       '#options' => $this->dropaiEmbeddingManager->getPluginOptions(),
       '#ajax' => [
-        'callback' => '::updateFormParts',
+        'callback' => '::updateFormEmbedding',
         'event' => 'change',
       ],
     ];
@@ -369,11 +369,7 @@ class EntityInspectForm extends FormBase {
       '#options' => $embedding->getModels(),
       "#empty_option"=>t('- None -'),
       '#ajax' => [
-        'callback' => '::updateFormParts',
-        'event' => 'change',
-      ],
-      '#ajax' => [
-        'callback' => '::updateFormParts',
+        'callback' => '::updateFormEmbedding',
         'event' => 'change',
       ],
     ];
@@ -406,12 +402,17 @@ class EntityInspectForm extends FormBase {
    * AJAX callback to update multiple parts of the form.
    */
   public function updateFormParts(array &$form, FormStateInterface $form_state) {
-    // Rebuild wrappers with content that may conditionally change.
     $response = new AjaxResponse();
     $response->addCommand(new ReplaceCommand('#loader-wrapper', $form['loader']));
     $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
     $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
     $response->addCommand(new ReplaceCommand('#splitter-wrapper', $form['splitter']));
+    $response->addCommand(new ReplaceCommand('#embedding-wrapper', $form['embedding']));
+    return $response;
+  }
+
+  public function updateFormEmbedding(array &$form, FormStateInterface $form_state) {
+    $response = new AjaxResponse();
     $response->addCommand(new ReplaceCommand('#embedding-wrapper', $form['embedding']));
     return $response;
   }

@@ -76,11 +76,8 @@ class OpenAiVisionLoader extends DropaiLoaderBase implements ContainerFactoryPlu
    * {@inheritdoc}
    */
   public function load(MediaInterface $entity): string {
-    $image_field = self::getImageField($entity);
-    if ($image_field && isset($image_field['alt'])) {
-      return $image_field['alt'];
-    }
-    return '';
+    $openai = \Drupal::service('dropai_openai.connector');
+    return $openai->getTextFromImage($entity);
   }
 
 }

@@ -5,13 +5,12 @@ namespace Drupal\dropai\Plugin;
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\media\MediaInterface;
+// use Drupal\file\Plugin\Field\FieldType\FileItem;
 
 /**
  * Base class for DropAI Loader plugins.
  */
 abstract class DropaiLoaderBase extends PluginBase implements DropaiLoaderInterface {
-
-  const IMAGE_FIELD = 'field_media_image';
 
   /**
    * Checks if the entity is a media entity.
@@ -40,21 +39,24 @@ abstract class DropaiLoaderBase extends PluginBase implements DropaiLoaderInterf
   }
 
   /**
-   * Gets the image field from the media entity.
+   * Determines if the given entity is a document media entity.
    *
-   * @todo: Allow additional image media types beyond the default bundle.
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity to check.
    *
-   * @param \Drupal\media\MediaInterface $entity
-   *   The media entity.
-   *
-   * @return array|null
-   *   The image field if available, NULL otherwise.
+   * @return bool
+   *   TRUE if the entity is an document media entity, FALSE otherwise.
    */
-  public static function getImageField(MediaInterface $entity): ?array {
-    if ($entity->hasField(self::IMAGE_FIELD) && !$entity->get(self::IMAGE_FIELD)->isEmpty()) {
-      return $entity->get(self::IMAGE_FIELD)->first()->getValue();
+  public static function isDocument(EntityInterface $entity): bool {
+    if (!self::isMedia($entity)) {
+      return FALSE;
     }
-    return NULL;
+    /** @var \Drupal\media\MediaInterface $entity */
+    $media_source = self::getMediaSource($entity);
+    if ($media_source == 'file') {
+      return TRUE;
+    }
+    return FALSE;
   }
 
   /**
@@ -72,10 +74,10 @@ abstract class DropaiLoaderBase extends PluginBase implements DropaiLoaderInterf
     }
     /** @var \Drupal\media\MediaInterface $entity */
     $media_source = self::getMediaSource($entity);
-    if ($media_source !== 'image') {
-      return FALSE;
+    if ($media_source == 'image') {
+      return TRUE;
     }
-    return !empty(self::getImageField($entity));
+    return FALSE;
   }
 
 }

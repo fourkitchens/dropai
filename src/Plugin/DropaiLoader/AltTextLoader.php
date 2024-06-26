@@ -16,6 +16,8 @@ use Drupal\media\MediaInterface;
  */
 class AltTextLoader extends DropaiLoaderBase {
 
+  const IMAGE_FIELD = 'field_media_image';
+
   /**
    * {@inheritdoc}
    */
@@ -27,11 +29,12 @@ class AltTextLoader extends DropaiLoaderBase {
    * {@inheritdoc}
    */
   public function load(MediaInterface $entity): string {
-    $image_field = self::getImageField($entity);
-    if ($image_field && isset($image_field['alt'])) {
-      return $image_field['alt'];
+    if (!$entity->hasField(self::IMAGE_FIELD) || $entity->get(self::IMAGE_FIELD)->isEmpty()){
+      return '';
     }
-    return '';
+    /** @var \Drupal\image\Plugin\Field\FieldType\ImageItem $image */
+    $image = $entity->get(self::IMAGE_FIELD)->first();
+    return $image->get('alt')->getString();
   }
 
 }
