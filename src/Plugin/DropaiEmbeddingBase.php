@@ -4,6 +4,7 @@ namespace Drupal\dropai\Plugin;
 
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use GuzzleHttp\Client;
@@ -44,6 +45,13 @@ abstract class DropaiEmbeddingBase extends PluginBase implements DropaiEmbedding
   protected $logger;
 
   /**
+   * The messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs an embeddings object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -52,11 +60,14 @@ abstract class DropaiEmbeddingBase extends PluginBase implements DropaiEmbedding
    *   The HTTP client.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
    *   The logger channel factory.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
    */
   public function __construct(
     ConfigFactoryInterface $configFactory,
     Client $httpClient,
-    LoggerChannelFactoryInterface $loggerFactory
+    LoggerChannelFactoryInterface $loggerFactory,
+    MessengerInterface $messenger
   ) {
     $this->configFactory = $configFactory;
     $this->httpClient = $httpClient;
@@ -75,7 +86,8 @@ abstract class DropaiEmbeddingBase extends PluginBase implements DropaiEmbedding
     return new static(
       $container->get('config.factory'),
       $container->get('http_client'),
-      $container->get('logger.factory')
+      $container->get('logger.factory'),
+      $container->get('messenger')
     );
   }
 
