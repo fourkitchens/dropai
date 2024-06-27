@@ -5,7 +5,7 @@ namespace Drupal\dropai\Plugin;
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\media\MediaInterface;
-// use Drupal\file\Plugin\Field\FieldType\FileItem;
+use Drupal\file\FileInterface;
 
 /**
  * Base class for DropAI Loader plugins.
@@ -57,6 +57,19 @@ abstract class DropaiLoaderBase extends PluginBase implements DropaiLoaderInterf
       return TRUE;
     }
     return FALSE;
+  }
+
+  /**
+   * Determines if the given entity is a file entity.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity to check.
+   *
+   * @return bool
+   *   TRUE if the entity is a file entity, FALSE otherwise.
+   */
+  public static function isFile(EntityInterface $entity): bool {
+    return $entity instanceof FileInterface;
   }
 
   /**

@@ -2,9 +2,8 @@
 
 namespace Drupal\dropai\Plugin\DropaiLoader;
 
-use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\dropai\Plugin\DropaiLoaderBase;
-use Drupal\media\MediaInterface;
 
 /**
  * Provides a DropAI Loader plugin that fetches an image's alt attribute.
@@ -14,22 +13,22 @@ use Drupal\media\MediaInterface;
  *   label = @Translation("Alt Text")
  * )
  */
-class AltTextLoader extends DropaiLoaderBase {
+class ImageAltTextLoader extends DropaiLoaderBase {
 
   const IMAGE_FIELD = 'field_media_image';
 
   /**
    * {@inheritdoc}
    */
-  public static function applies(EntityInterface $entity) {
+  public static function applies(ContentEntityInterface $entity): bool {
     return self::isImage($entity);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function load(MediaInterface $entity): string {
-    if (!$entity->hasField(self::IMAGE_FIELD) || $entity->get(self::IMAGE_FIELD)->isEmpty()){
+  public function load(ContentEntityInterface $entity): string {
+    if (!self::isImage($entity) || !$entity->hasField(self::IMAGE_FIELD) || $entity->get(self::IMAGE_FIELD)->isEmpty()){
       return '';
     }
     /** @var \Drupal\image\Plugin\Field\FieldType\ImageItem $image */

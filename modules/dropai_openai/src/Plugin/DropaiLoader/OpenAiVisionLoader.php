@@ -2,13 +2,12 @@
 
 namespace Drupal\dropai_openai\Plugin\DropaiLoader;
 
-use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\dropai\Plugin\DropaiLoaderBase;
-use Drupal\media\MediaInterface;
 
 /**
  * Provides a DropAI Loader plugin that returns a text description of an image.
@@ -68,14 +67,17 @@ class OpenAiVisionLoader extends DropaiLoaderBase implements ContainerFactoryPlu
   /**
    * {@inheritdoc}
    */
-  public static function applies(EntityInterface $entity) {
+  public static function applies(ContentEntityInterface $entity) {
     return self::isImage($entity);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function load(MediaInterface $entity): string {
+  public function load(ContentEntityInterface $entity): string {
+    if (!self::isImage($entity)) {
+      return '';
+    }
     $openai = \Drupal::service('dropai_openai.connector');
     return $openai->getTextFromImage($entity);
   }
