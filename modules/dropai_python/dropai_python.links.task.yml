@@ -1,0 +1,7 @@
+media.python_doc_reader.content_tab:
+  route_name: media.python_doc_reader.content
+  title: 'Content (via Python)'
+  base_route: entity.media.canonical
+  weight: 100
+  requirements:
+    _custom_access: 'dropai.doc_reader.access_check.doc_content'

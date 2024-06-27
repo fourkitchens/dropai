@@ -1,0 +1,18 @@
+# Settings form
+dropai_python.settings:
+  path: '/admin/config/dropai/python'
+  defaults:
+    _form: '\Drupal\dropai_python\Form\SettingsForm'
+    _title: 'DropAI Python Settings'
+  requirements:
+    _permission: 'administer dropai'
+
+# Create a path to render a document via Python.
+media.python_doc_reader.content:
+  path: '/media/{media}/content-python'
+  defaults:
+    _controller: '\Drupal\dropai_python\Controller\DocReaderPythonController::content'
+    _title: 'Document Content via Python'
+  requirements:
+    _doc_reader_access_check: 'TRUE'
+    media: \d+

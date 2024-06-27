@@ -1,0 +1,6 @@
+# Add DropAI Gemini settings page to the admin menu.
+dropai_python.settings:
+  route_name: dropai_python.settings
+  parent: dropai.admin
+  title: Python Settings
+  description: 'Configure DropAI Python settings.'
