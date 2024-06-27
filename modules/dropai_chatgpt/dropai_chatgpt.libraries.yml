@@ -1,0 +1,7 @@
+chatgpt-textarea-scroll-down:
+  version: 1.x
+  js:
+    js/chatgpt-textarea-scroll-down.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings

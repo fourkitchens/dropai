@@ -1,0 +1,6 @@
+# Add DropAI OpenAI settings page to the admin menu.
+dropai_chatgpt.settings:
+  route_name: dropai_chatgpt.settings
+  parent: dropai_openai.settings
+  title: ChatGPT Global Settings
+  description: 'Configure ChatGPT settings.'
