@@ -1,0 +1,6 @@
+# Add DropAI Pinecone settings page to the admin menu.
+dropai_pinecone.settings:
+  route_name: dropai_pinecone.settings
+  parent: dropai.admin
+  title: Pinecone Settings
+  description: 'Configure Pinecone Settings.'

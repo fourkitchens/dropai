@@ -1,0 +1,8 @@
+# Set Pinecone Settings.
+dropai_pinecone.settings:
+  path: '/admin/config/dropai/pinecone'
+  defaults:
+    _form: '\Drupal\dropai_pinecone\Form\PineconeSettingsForm'
+    _title: 'Pinecone Settings'
+  requirements:
+    _permission: 'administer dropai'

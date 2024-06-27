@@ -1,0 +1,8 @@
+name: 'DropAI Python Integration'
+type: module
+description: 'Integration with Python for local development.'
+package: 'DropAI'
+core_version_requirement: ^10 || ^11
+dependencies:
+  - media
+  - dropai

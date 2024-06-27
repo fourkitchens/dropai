@@ -2,9 +2,14 @@ services:
   # Manage entity update and trigger updates to the vector database.
   dropai.entity_update:
     class: Drupal\dropai\Service\EntityUpdate
-    arguments:
-      - '@config.factory'
-      - '@logger.channel.default'
+    arguments: [
+      '@config.factory',
+      '@logger.factory',
+      '@plugin.manager.dropai_embedding',
+      '@plugin.manager.dropai_loader',
+      '@plugin.manager.dropai_preprocessor',
+      '@plugin.manager.dropai_splitter',
+    ]
   # Add and alter existing routes - used to add AI Inspector to entities.
   dropai.route_subscriber:
     class: Drupal\dropai\Routing\RouteSubscriber
@@ -14,6 +19,10 @@ services:
   # Manage embedding plugins.
   plugin.manager.dropai_embedding:
     class: Drupal\dropai\Plugin\DropaiEmbeddingManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
+  # Manage loader plugins.
+  plugin.manager.dropai_loader:
+    class: Drupal\dropai\Plugin\DropaiLoaderManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   # Manage processor plugins.
   plugin.manager.dropai_preprocessor:
@@ -27,12 +36,3 @@ services:
   plugin.manager.dropai_tokenizer:
     class: Drupal\dropai\Plugin\DropaiTokenizerManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
-  # Define a service to build a Factory to the document Reader.
-  dropai.document_reader.factory:
-    class: Drupal\dropai\Service\DocReaderFactory
-    arguments: ['@config.factory']
-  # Define a service for media content access.
-  dropai.doc_reader.access_check.doc_content:
-    class: Drupal\dropai\Access\MediaContentAccessCheck
-    tags:
-      - { name: access_check, applies_to: _doc_reader_access_check }
