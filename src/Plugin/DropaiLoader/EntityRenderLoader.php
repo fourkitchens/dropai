@@ -2,7 +2,7 @@
 
 namespace Drupal\dropai\Plugin\DropaiLoader;
 
-use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
@@ -67,14 +67,14 @@ class EntityRenderLoader extends DropaiLoaderBase implements ContainerFactoryPlu
   /**
    * {@inheritdoc}
    */
-  public static function applies(EntityInterface $entity) {
+  public static function applies(ContentEntityInterface $entity) {
     return TRUE;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function load(EntityInterface $entity) {
+  public function load(ContentEntityInterface $entity): string {
     $view_builder = $this->entityTypeManager->getViewBuilder($entity->getEntityTypeId());
     $renderArray = $view_builder->view($entity, 'default');
     return $this->renderer->render($renderArray)->__toString();

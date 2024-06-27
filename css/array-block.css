@@ -3,7 +3,7 @@
   padding: 1em;
   color: #adbac7;
   background: #22272e;
-  max-height: 350px;
+  height: 350px;
   word-break: break-word;
   overflow-y: scroll;
 }

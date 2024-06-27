@@ -23,6 +23,6 @@ interface OpenaiInterface {
    * @throws \GuzzleHttp\Exception\RequestException
    *   If the request fails.
    */
-  public function makeApiRequest(string $apiEndpoint, array $params): ResponseInterface;
+  // public function makeApiRequest(string $apiEndpoint, array $params): ResponseInterface;
 
 }

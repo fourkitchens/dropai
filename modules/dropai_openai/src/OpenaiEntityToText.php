@@ -78,51 +78,57 @@ class OpenaiEntityToText implements OpenaiEntityToTextInterface {
   /**
    * {@inheritDoc}
    */
-  protected function getImageAsText(MediaInterface $entity): string {
+  public function getImageAsText(MediaInterface $entity): string {
 
-    $file_id = $entity->field_media_image->target_id;
-    $alt_text = $entity->field_media_image->alt;
-    $file = $this->entityTypeManager->getStorage('file')->load($file_id);
-    $image_contents = file_get_contents($file->getFileUri());
-    $encoded_image = base64_encode($image_contents);
+    // $file_id = $entity->field_media_image->target_id;
+    // $alt_text = $entity->field_media_image->alt;
+    // $file = $this->entityTypeManager->getStorage('file')->load($file_id);
+    // $image_contents = file_get_contents($file->getFileUri());
+    // $encoded_image = base64_encode($image_contents);
 
-    try {
-      $apiEndpoint = "https://api.openai.com/v1/chat/completions";
-      $messages = [[
-        "role" => "user",
-        "content" => [
-          [
-            // Media title.
-            "type" => "text",
-            "text" => $entity->getName(),
-          ],
-          [
-            // Image alt text.
-            "type" => "text",
-            "text" => $alt_text,
-          ],
-          [
-            // Base 64 encoded image.
-            "type" => "image_url",
-            "image_url" => [
-              "url" => "data:image/jpeg;base64,${encoded_image}"
-            ]
-          ]
-        ]
-      ]];
+    // try {
+    //   $apiEndpoint = "https://api.openai.com/v1/chat/completions";
+    //   $messages = [[
+    //     "role" => "user",
+    //     "content" => [
+    //       [
+    //         // Media title.
+    //         "type" => "text",
+    //         "text" => $entity->getName(),
+    //       ],
+    //       [
+    //         // Image alt text.
+    //         "type" => "text",
+    //         "text" => $alt_text,
+    //       ],
+    //       [
+    //         // Base 64 encoded image.
+    //         "type" => "image_url",
+    //         "image_url" => [
+    //           "url" => "data:image/jpeg;base64,${encoded_image}"
+    //         ]
+    //       ]
+    //     ]
+    //   ]];
 
-      $params = [
-        ['name' => 'messages', 'contents' => $messages],
-        ['name' => 'model', 'contents' => 'gpt-4o'],
-      ];
+    //   $params = [
+    //     ['name' => 'messages', 'contents' => $messages],
+    //     ['name' => 'model', 'contents' => 'gpt-4o'],
+    //   ];
 
-      $response = $this->openai->makeApiRequest($apiEndpoint, $params);
-      return $this->extractImageText($response);
-    }
-    catch (\Exception $e) {
-      $this->logger->error('An error occurred: ' . $e->getMessage());
-      return '';
-    }
+    //   $response = $this->openai->makeApiRequest($apiEndpoint, $params);
+    //   ksm($response);
+
+    //   //
+    //   // return $this->extractImageText($response);
+    // }
+    // catch (\Exception $e) {
+    //   $this->logger->error('An error occurred: ' . $e->getMessage());
+    //   return '';
+    // }
+    return '';
+
+
   }
 
   /**
