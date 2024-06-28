@@ -6,6 +6,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\dropai\Plugin\DropaiStorageManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -28,6 +29,11 @@ class IndexingSettingsForm extends ConfigFormBase {
   protected $entityTypeBundleInfo;
 
   /**
+   * @var \Drupal\dropai\Plugin\DropaiStorageManager
+   */
+  protected DropaiStorageManager $dropaiStorageManager;
+
+  /**
    * Constructs a new IndexingSettingsForm.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
@@ -37,10 +43,12 @@ class IndexingSettingsForm extends ConfigFormBase {
    */
   public function __construct(
     EntityTypeManagerInterface $entityTypeManager,
-    EntityTypeBundleInfoInterface $entityTypeBundleInfo
+    EntityTypeBundleInfoInterface $entityTypeBundleInfo,
+    DropaiStorageManager $dropaiStorageManager
   ) {
     $this->entityTypeManager = $entityTypeManager;
     $this->entityTypeBundleInfo = $entityTypeBundleInfo;
+    $this->dropaiStorageManager = $dropaiStorageManager;
   }
 
   /**
@@ -49,7 +57,8 @@ class IndexingSettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
-      $container->get('entity_type.bundle.info')
+      $container->get('entity_type.bundle.info'),
+      $container->get('plugin.manager.dropai_storage')
     );
   }
 
@@ -132,6 +141,18 @@ class IndexingSettingsForm extends ConfigFormBase {
         '#default_value' => $config->get('entities')[$entity_type_id]['bundles'] ?? [],
       ];
     }
+
+    // Get the storage plugin options.
+    $storage_options = $this->dropaiStorageManager->getPluginOptions();
+    $form['storage_settings'] = [
+      '#type' => 'container',
+    ];
+    $form['storage_settings']['storage_plugin'] = [
+      '#type' => 'select',
+      '#options' => $storage_options,
+      '#default_value' => $config->get('storage_plugin'),
+    ];
+
     return parent::buildForm($form, $form_state);
   }
 
@@ -152,9 +173,10 @@ class IndexingSettingsForm extends ConfigFormBase {
     foreach ($entities as $entity_type_id) {
       $entities_settings[$entity_type_id] = [
         'index_type' => $form_state->getValue(['bundle_settings', $entity_type_id, 'index_type'], 'exclude'),
-        'bundles' => array_filter($form_state->getValue(['bundle_settings', $entity_type_id, 'bundles']) ?? []),
+        'bundles' => array_filter($form_state->getValue(['bundle_settings', $entity_type_id, 'bundles']) ?? [])
       ];
     }
+    $config->set('storage_plugin', $form_state->getValue(['storage_settings', 'storage_plugin'], 'none'))->save();
     $config->set('entities', $entities_settings)->save();
     parent::submitForm($form, $form_state);
   }

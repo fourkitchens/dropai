@@ -3,9 +3,9 @@
 namespace Drupal\dropai\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\node\Entity\Node;
+use Drupal\Core\Logger\LoggerChannelInterface;
+use Drupal\dropai\Plugin\DropaiStorageManager;
 use Drupal\dropai\Plugin\DropaiEmbeddingManager;
 use Drupal\dropai\Plugin\DropaiSplitterManager;
 use Drupal\dropai\Plugin\DropaiPreprocessorManager;
@@ -60,6 +60,13 @@ class EntityUpdate {
   protected $dropaiSplitterManager;
 
   /**
+   * The DropAI storage plugin manager service.
+   *
+   * @var \Drupal\dropai\Plugin\DropaiStorageManager
+   */
+  protected $dropaiStorageManager;
+
+  /**
    * Constructs a new EntityUpdate object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -74,27 +81,33 @@ class EntityUpdate {
    *   The DropAI Preprocessor plugin manager.
    * @param \Drupal\dropai\Plugin\DropaiSplitterManager $dropai_splitter_manager
    *   The DropAI Splitter plugin manager.
+* @param \Drupal\dropai\Plugin\DropaiStorageManager $dropaiStorageManager
+*    The DropAI storage plugin manager service.
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
-    LoggerChannelFactoryInterface $logger_factory,
+    LoggerChannelFactoryInterface $loggerFactory,
     DropaiEmbeddingManager $dropai_embedding_manager,
     DropaiLoaderManager $dropai_loader_manager,
     DropaiPreprocessorManager $dropai_preprocessor_manager,
     DropaiSplitterManager $dropai_splitter_manager,
+    DropaiStorageManager $dropaiStorageManager
   ) {
     $this->configFactory = $config_factory;
-    $this->loggerFactory = $logger_factory;
+    $this->loggerFactory = $loggerFactory;
     $this->dropaiEmbeddingManager = $dropai_embedding_manager;
     $this->dropaiLoaderManager = $dropai_loader_manager;
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
     $this->dropaiSplitterManager = $dropai_splitter_manager;
+    $this->dropaiStorageManager = $dropaiStorageManager;
   }
 
   /**
    * Create function.
    *
    * @param ContainerInterface $container
+   *
+   * @return \Drupal\dropai\Service\EntityUpdate
    */
   public static function create(ContainerInterface $container) {
     return new static(
@@ -104,7 +117,26 @@ class EntityUpdate {
       $container->get('plugin.manager.dropai_loader'),
       $container->get('plugin.manager.dropai_preprocessor'),
       $container->get('plugin.manager.dropai_splitter'),
+      $container->get('plugin.manager.dropai_storage')
     );
+  }
+
+  /**
+   * Get the configured plugin if there is one.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\PluginException
+   */
+  private function getCofiguredStoragePlugin() {
+    $config = $this->configFactory->get('dropai.indexing_settings');
+    $storage_plugin_id = $config->get('storage_plugin');
+
+    // Can't if we don't have one.
+    if (empty($storage_plugin_id) || $storage_plugin_id === 'none') {
+      throw new \Exception('No storage plugin configured.');
+    }
+
+    // Get the storage function class from the plugin id.
+    return $this->dropaiStorageManager->createInstance($storage_plugin_id);
   }
 
   /**
@@ -166,6 +198,19 @@ class EntityUpdate {
     // TODO: Improve the call to the services.
     $pinecone_service = \Drupal::service('dropai_pinecone.service_embedding_provider');
     $pinecone_service->upsert($data);
+
+    try {
+      $this->getCofiguredStoragePlugin()->upsert($entity);
+    } catch (\Exception $e) {
+      $this->logger->error(
+        'Failed to upsert @type @id in vector database: @error',
+        [
+          '@type' => $entity->getEntityTypeId(),
+          '@id' => $entity->id(),
+          '@error' => $e->getMessage(),
+        ]
+      );
+    }
 
     $this->loggerFactory->get('dropai')->notice(
       'Upserted @type @id in vector database: @vector',
