@@ -6,26 +6,7 @@ dropai.admin:
     _title: 'DropAI Admin Settings'
   requirements:
     _permission: 'administer dropai'
-
-# Create top-level admin page for AI Engine.
-dropai.admin.readers:
-  path: '/admin/config/dropai/readers'
-  defaults:
-    _form: '\Drupal\dropai\Form\DocReaderSettingsForm'
-    _title: 'Document Readers Settings'
-  requirements:
-    _permission: 'administer dropai'
-
-# Create a path to render a document.
-media.doc_reader.content:
-  path: '/media/{media}/content'
-  defaults:
-    _controller: '\Drupal\dropai\Controller\DocReaderController::content'
-    _title: 'Document Content'
-  requirements:
-    _doc_reader_access_check: 'TRUE'
-    media: \d+
-
+# Manage which entities and bundles are indexed.
 dropai.indexing:
   path: '/admin/config/dropai/indexing'
   defaults:

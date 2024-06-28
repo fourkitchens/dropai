@@ -6,7 +6,7 @@
 }
 
 /* All HighlightJS code blocks */
-code {
-  max-height: 350px;
+.section-grid code {
+  height: 350px;
   word-break: break-word;
 }

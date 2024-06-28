@@ -1,0 +1,8 @@
+name: 'DropAI ChatGPT'
+type: module
+description: 'This module allows you to chat with ChatGPT.'
+package: 'DropAI'
+configure: dropai_chatgpt.settings
+core_version_requirement: ^10 || ^11
+dependencies:
+  - dropai:dropai_openai

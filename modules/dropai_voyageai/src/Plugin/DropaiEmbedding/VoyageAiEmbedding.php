@@ -38,8 +38,9 @@ class VoyageAiEmbedding extends DropaiEmbeddingBase {
     }
     catch (\Exception $e) {
       $this->logger->error('An error occurred: ' . $e->getMessage());
-      return [];
+      $this->messenger->addError($e->getMessage());
     }
+    return [];
   }
 
   /**

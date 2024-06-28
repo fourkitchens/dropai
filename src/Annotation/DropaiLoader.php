@@ -25,4 +25,11 @@ class DropaiLoader extends Plugin {
    */
   public $label;
 
+  /**
+   * The MIME type that this plugin supports (optional).
+   *
+   * @var string
+   */
+  public $mime_type;
+
 }

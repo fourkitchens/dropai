@@ -4,11 +4,12 @@ namespace Drupal\dropai\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\Core\Ajax\MessageCommand;
+use Drupal\Core\Ajax\RemoveCommand;
 use Drupal\dropai\Plugin\DropaiEmbeddingManager;
 use Drupal\dropai\Plugin\DropaiLoaderManager;
 use Drupal\dropai\Plugin\DropaiPreprocessorManager;
@@ -63,13 +64,6 @@ class EntityInspectForm extends FormBase {
   protected $entity;
 
   /**
-   * The messenger service.
-   *
-   * @var \Drupal\Core\Messenger\MessengerInterface
-   */
-  protected $messenger;
-
-  /**
    * Constructs a new form.
    *
    * @param \Drupal\dropai\Plugin\DropaiEmbeddingManager $dropai_embedding_manager
@@ -96,14 +90,12 @@ class EntityInspectForm extends FormBase {
     DropaiSplitterManager $dropai_splitter_manager,
     DropaiTokenizerManager $dropai_tokenizer_manager,
     RouteMatchInterface $route_match,
-    MessengerInterface $messenger,
   ) {
     $this->dropaiEmbeddingManager = $dropai_embedding_manager;
     $this->dropaiLoaderManager = $dropai_loader_manager;
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
     $this->dropaiSplitterManager = $dropai_splitter_manager;
     $this->dropaiTokenizerManager = $dropai_tokenizer_manager;
-    $this->messenger = $messenger;
     $parameter_name = $route_match->getRouteObject()->getOption('_dropai_entity_type_id');
     $this->entity = $route_match->getParameter($parameter_name);
   }
@@ -119,7 +111,6 @@ class EntityInspectForm extends FormBase {
       $container->get('plugin.manager.dropai_splitter'),
       $container->get('plugin.manager.dropai_tokenizer'),
       $container->get('current_route_match'),
-      $container->get('messenger'),
     );
   }
 
@@ -357,7 +348,7 @@ class EntityInspectForm extends FormBase {
       '#default_value' => 'none',
       '#options' => $this->dropaiEmbeddingManager->getPluginOptions(),
       '#ajax' => [
-        'callback' => '::updateFormParts',
+        'callback' => '::updateFormEmbedding',
         'event' => 'change',
       ],
     ];
@@ -369,11 +360,7 @@ class EntityInspectForm extends FormBase {
       '#options' => $embedding->getModels(),
       "#empty_option"=>t('- None -'),
       '#ajax' => [
-        'callback' => '::updateFormParts',
-        'event' => 'change',
-      ],
-      '#ajax' => [
-        'callback' => '::updateFormParts',
+        'callback' => '::updateFormEmbedding',
         'event' => 'change',
       ],
     ];
@@ -406,14 +393,45 @@ class EntityInspectForm extends FormBase {
    * AJAX callback to update multiple parts of the form.
    */
   public function updateFormParts(array &$form, FormStateInterface $form_state) {
-    // Rebuild wrappers with content that may conditionally change.
     $response = new AjaxResponse();
     $response->addCommand(new ReplaceCommand('#loader-wrapper', $form['loader']));
     $response->addCommand(new ReplaceCommand('#preprocessor-wrapper', $form['preprocessor']));
     $response->addCommand(new ReplaceCommand('#tokenizer-wrapper', $form['tokenizer']));
     $response->addCommand(new ReplaceCommand('#splitter-wrapper', $form['splitter']));
     $response->addCommand(new ReplaceCommand('#embedding-wrapper', $form['embedding']));
+    $this->setAJAXMessages($response);
     return $response;
+  }
+
+  /**
+   * AJAX callback to update the embedding section of the form.
+   */
+  public function updateFormEmbedding(array &$form, FormStateInterface $form_state) {
+    $response = new AjaxResponse();
+    $response->addCommand(new ReplaceCommand('#embedding-wrapper', $form['embedding']));
+    $this->setAJAXMessages($response);
+    return $response;
+  }
+
+  /**
+   * Add any Messenger items to the form via AJAX MessageCommand on form update.
+   *
+   * @param \Drupal\Core\Ajax\AjaxResponse $response
+   *   An AJAX response created for form updates, updated by reference.
+   *
+   * @return void
+   */
+  public function setAJAXMessages(&$response) {
+    // Clear existing messages.
+    $response->addCommand(new RemoveCommand('.messages'));
+    // Check the message queue and add any pending errors, warnings, statuses.
+    foreach ($this->messenger()->all() as $type => $messages) {
+      if (empty($messages)) continue;
+      foreach ($messages as $message) {
+        $response->addCommand(new MessageCommand($message, NULL, ['type' => $type]));
+      }
+    }
+    $this->messenger->deleteAll();
   }
 
 }

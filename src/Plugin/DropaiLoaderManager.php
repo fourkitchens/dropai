@@ -58,4 +58,23 @@ class DropaiLoaderManager extends DefaultPluginManager {
     return $options;
   }
 
+  /**
+   * Loads a DropAI loader plugin based on the MIME type.
+   *
+   * @param string $mime_type
+   *   The MIME type to match.
+   *
+   * @return \Drupal\dropai\Plugin\DropaiLoaderInterface|null
+   *   The matched DropAI loader plugin, or NULL if no match is found.
+   */
+  public function loadPluginByMimeType(string $mime_type): ?DropaiLoaderInterface {
+    $plugin_definitions = $this->getDefinitions();
+    foreach ($plugin_definitions as $plugin_id => $plugin_definition) {
+      if (isset($plugin_definition['mime_type']) && $plugin_definition['mime_type'] === $mime_type) {
+        return $this->createInstance($plugin_id);
+      }
+    }
+    return NULL;
+  }
+
 }

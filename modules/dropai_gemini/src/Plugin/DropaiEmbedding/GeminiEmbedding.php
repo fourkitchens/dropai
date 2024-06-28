@@ -36,6 +36,7 @@ class GeminiEmbedding extends DropaiEmbeddingBase {
     }
     catch (\Exception $e) {
       $this->logger->error('An error occurred: ' . $e->getMessage());
+      $this->messenger->addError($e->getMessage());
       return [];
     }
   }
