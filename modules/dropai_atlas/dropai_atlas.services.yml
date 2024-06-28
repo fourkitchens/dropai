@@ -1,0 +1,6 @@
+services:
+  # Add mongo storage service.
+  dropai_atlas.mongo_storage:
+    class: MongoDB\Database
+    factory: [ '@mongodb.database_factory', 'get' ]
+    arguments: [ 'default' ]

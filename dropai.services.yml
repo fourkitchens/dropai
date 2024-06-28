@@ -5,18 +5,13 @@ services:
     arguments:
       - '@config.factory'
       - '@logger.channel.default'
-      - '@dropai.mongo_storage'
+      - '@plugin.manager.dropai_storage'
   # Add and alter existing routes - used to add AI Inspector to entities.
   dropai.route_subscriber:
     class: Drupal\dropai\Routing\RouteSubscriber
     arguments: ['@entity_type.manager']
     tags:
       - { name: event_subscriber }
-  # Add mongo storage service.
-  dropai.mongo_storage:
-    class: MongoDB\Database
-    factory: ['@mongodb.database_factory', 'get']
-    arguments: ['default']
   # Manage embedding plugins.
   plugin.manager.dropai_embedding:
     class: Drupal\dropai\Plugin\DropaiEmbeddingManager

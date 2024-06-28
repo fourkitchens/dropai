@@ -9,4 +9,13 @@ use Drupal\Component\Plugin\PluginInspectionInterface;
  */
 interface DropaiStorageInterface extends PluginInspectionInterface {
 
+  public function upsert($document);
+
+  public function delete($document);
+
+  public function search($query);
+
+  public function createIndex($index);
+
+  public function deleteIndex($index);
 }

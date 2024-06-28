@@ -4,9 +4,8 @@ namespace Drupal\dropai\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Http\ClientFactory;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use MongoDB\Database;
+use Drupal\dropai\Plugin\DropaiStorageManager;
 
 /**
  * Service for updating the vector database as content is updated.
@@ -28,11 +27,11 @@ class EntityUpdate {
   protected $logger;
 
   /**
-   * The database service.
+   * The DropAI storage plugin manager service.
    *
-   * @var \MongoDB\Database
+   * @var \Drupal\dropai\Plugin\DropaiStorageManager
    */
-  protected Database $database;
+  protected $dropaiStorageManager;
 
   /**
    * Constructs a new EntityUpdate object.
@@ -41,15 +40,35 @@ class EntityUpdate {
    *   The configuration factory.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger service.
+   * @param \Drupal\dropai\Plugin\DropaiStorageManager $dropaiStorageManager
+   *    The DropAI storage plugin manager service.
    */
   public function __construct(
     ConfigFactoryInterface $configFactory,
     LoggerChannelInterface $logger,
-    Database $database
+    DropaiStorageManager $dropaiStorageManager
   ) {
     $this->configFactory = $configFactory;
     $this->logger = $logger;
-    $this->database = $database;
+    $this->dropaiStorageManager = $dropaiStorageManager;
+  }
+
+  /**
+   * Get the configured plugin if there is one.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\PluginException
+   */
+  private function getCofiguredStoragePlugin() {
+    $config = $this->configFactory->get('dropai.indexing_settings');
+    $storage_plugin_id = $config->get('storage_plugin');
+
+    // Can't if we don't have one.
+    if (empty($storage_plugin_id) || $storage_plugin_id === 'none') {
+      throw new \Exception('No storage plugin configured.');
+    }
+
+    // Get the storage function class from the plugin id.
+    return $this->dropaiStorageManager->createInstance($storage_plugin_id);
   }
 
   /**
@@ -63,15 +82,21 @@ class EntityUpdate {
    *   A content entity in Drupal.
    */
   public function upsertDocument(EntityInterface $entity) {
-
-    $this->database->selectCollection('documents')->updateOne(
-      ['_id' => $entity->id()],
-      ['$set' => ['title' => $entity->label()]],
-      ['upsert' => TRUE]);
-
+    try {
+      $this->getCofiguredStoragePlugin()->upsert($entity);
+    } catch (\Exception $e) {
+      $this->logger->error(
+        'Failed to upsert @type @id in vector database: @error',
+        [
+          '@type' => $entity->getEntityTypeId(),
+          '@id' => $entity->id(),
+          '@error' => $e->getMessage(),
+        ]
+      );
+    }
 
     $this->logger->notice(
-      'Upserted @type @id in vector database.',
+      'Attempted to upsert @type @id in vector database.',
       ['@type' => $entity->getEntityTypeId(), '@id' => $entity->id()]
     );
   }
