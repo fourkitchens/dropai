@@ -1,11 +1,27 @@
 {
-    "name": "fourkitchens/dropai",
+    "name": "yalesites-org/dropai",
     "description": "Transform Drupal websites into AI-powered platforms",
     "type": "drupal-module",
     "authors": [
         {
             "name": "nJim",
             "email": "jim.vomero@fourkitchens.com"
+        },
+        {
+            "name": "codechefmarc",
+            "email": "marc@fourkitchens.com"
+        },
+        {
+            "name": "edwtorba",
+            "email": "edwin@fourkitchens.com"
+        },
+        {
+            "name": "mikeethedude",
+            "email": "mike.goulding@fourkitchens.com"
+        },
+        {
+            "name": "#laura-johnson",
+            "email": "laura@fourkitchens.com"
         }
     ],
     "minimum-stability": "dev",
