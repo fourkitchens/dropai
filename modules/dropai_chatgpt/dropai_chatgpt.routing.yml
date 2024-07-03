@@ -8,10 +8,10 @@ dropai_chatgpt.settings:
     _permission: 'administer chatgpt'
 
 # Chat page.
-dropai_chatgpt.chat:
+dropai_chatgpt.playground:
   path: '/chatgpt'
   defaults:
     _form: '\Drupal\dropai_chatgpt\Form\ChatGptChatForm'
-    _title: 'GPT Chat'
+    _title: 'ChatGPT Playground'
   requirements:
     _permission: 'access content'

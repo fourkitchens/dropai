@@ -4,3 +4,8 @@ dropai_chatgpt.settings:
   parent: dropai_openai.settings
   title: ChatGPT Global Settings
   description: 'Configure ChatGPT settings.'
+dropai_chatgpt.playground:
+  route_name: dropai_chatgpt.playground
+  parent: dropai_openai.settings
+  title: ChatGPT Playground
+  description: 'ChatGPT Playground.'
