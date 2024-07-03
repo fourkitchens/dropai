@@ -1,0 +1,7 @@
+name: 'DropAI Atlas Storage'
+type: module
+description: 'Storage plugin for Dropai'
+package: 'DropAI'
+core_version_requirement: ^10 || ^11
+dependencies:
+  - mongodb:mongodb
