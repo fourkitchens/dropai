@@ -9,7 +9,8 @@ services:
       '@plugin.manager.dropai_loader',
       '@plugin.manager.dropai_preprocessor',
       '@plugin.manager.dropai_splitter',
-      '@plugin.manager.dropai_storage'
+      '@plugin.manager.dropai_storage',
+      '@event_dispatcher'
     ]
   # Add and alter existing routes - used to add AI Inspector to entities.
   dropai.route_subscriber:
@@ -45,8 +46,3 @@ services:
   dropai.document_reader.factory:
     class: Drupal\dropai\Service\DocReaderFactory
     arguments: ['@config.factory']
-  # Define a service for media content access.
-  dropai.doc_reader.access_check.doc_content:
-    class: Drupal\dropai\Access\MediaContentAccessCheck
-    tags:
-      - { name: access_check, applies_to: _doc_reader_access_check }
