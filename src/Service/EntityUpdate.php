@@ -3,14 +3,17 @@
 namespace Drupal\dropai\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\dropai\Plugin\DropaiStorageManager;
+use Drupal\dropai\Event\DropaiEmbeddingEvent;
 use Drupal\dropai\Plugin\DropaiEmbeddingManager;
-use Drupal\dropai\Plugin\DropaiSplitterManager;
-use Drupal\dropai\Plugin\DropaiPreprocessorManager;
 use Drupal\dropai\Plugin\DropaiLoaderManager;
+use Drupal\dropai\Plugin\DropaiPreprocessorManager;
+use Drupal\dropai\Plugin\DropaiSplitterManager;
+use Drupal\dropai\Plugin\DropaiStorageManager;
+use Drupal\node\Entity\Node;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Service for updating the vector database as content is updated.
@@ -67,6 +70,13 @@ class EntityUpdate {
   protected $dropaiStorageManager;
 
   /**
+   * The Event Dispatcher.
+   *
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   */
+  protected $eventDispatcher;
+
+  /**
    * Constructs a new EntityUpdate object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -81,8 +91,10 @@ class EntityUpdate {
    *   The DropAI Preprocessor plugin manager.
    * @param \Drupal\dropai\Plugin\DropaiSplitterManager $dropai_splitter_manager
    *   The DropAI Splitter plugin manager.
-* @param \Drupal\dropai\Plugin\DropaiStorageManager $dropaiStorageManager
-*    The DropAI storage plugin manager service.
+   * @param \Drupal\dropai\Plugin\DropaiStorageManager $dropaiStorageManager
+   *    The DropAI storage plugin manager service.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   The Event Dispatcher.
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
@@ -91,7 +103,8 @@ class EntityUpdate {
     DropaiLoaderManager $dropai_loader_manager,
     DropaiPreprocessorManager $dropai_preprocessor_manager,
     DropaiSplitterManager $dropai_splitter_manager,
-    DropaiStorageManager $dropaiStorageManager
+    DropaiStorageManager $dropaiStorageManager,
+    EventDispatcherInterface $event_dispatcher
   ) {
     $this->configFactory = $config_factory;
     $this->loggerFactory = $loggerFactory;
@@ -100,6 +113,7 @@ class EntityUpdate {
     $this->dropaiPreprocessorManager = $dropai_preprocessor_manager;
     $this->dropaiSplitterManager = $dropai_splitter_manager;
     $this->dropaiStorageManager = $dropaiStorageManager;
+    $this->eventDispatcher = $event_dispatcher;
   }
 
   /**
@@ -117,7 +131,8 @@ class EntityUpdate {
       $container->get('plugin.manager.dropai_loader'),
       $container->get('plugin.manager.dropai_preprocessor'),
       $container->get('plugin.manager.dropai_splitter'),
-      $container->get('plugin.manager.dropai_storage')
+      $container->get('plugin.manager.dropai_storage'),
+      $container->get('event_dispatcher')
     );
   }
 
@@ -148,8 +163,10 @@ class EntityUpdate {
    *
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   A content entity in Drupal.
+   * @param string
+   *   The action.
    */
-  public function upsertEntiy(EntityInterface $entity) {
+  public function upsertEntiy(EntityInterface $entity, string $action) {
     // Default configuration.
     $loader_id = 'entityrender';
     $preprocessor = 'plaintext';
@@ -185,41 +202,36 @@ class EntityUpdate {
       $metadata['title'] = $entity->getTitle();
       $metadata['content'] = '';
     }
-    // Render the data.
-    $data = [
-      'vectors' => [
-        'id' => $entity->getEntityTypeId() . ':' . $entity->id() . ':' . $entity->bundle(),
-        'values' => $embeddings[0],
-        'metadata' => $metadata,
-      ],
-      'namespace' => $entity->getEntityTypeId(),
-    ];
 
-    // TODO: Improve the call to the services.
-    $pinecone_service = \Drupal::service('dropai_pinecone.service_embedding_provider');
-    $pinecone_service->upsert($data);
-
+    $id = $entity->getEntityTypeId() . ':' . $entity->id() . ':' . $entity->bundle();
     try {
-      $this->getCofiguredStoragePlugin()->upsert($entity);
-    } catch (\Exception $e) {
-      $this->logger->error(
-        'Failed to upsert @type @id in vector database: @error',
+      // Render the data.
+      $data = [
+        'vectors' => [
+          'id' => $id,
+          'values' => $embeddings[0],
+          'metadata' => $metadata,
+        ],
+        'namespace' => $entity->getEntityTypeId(),
+      ];
+
+      // Send the event.
+      $event_type = $action === 'insert' ? DropaiEmbeddingEvent::INSERT : DropaiEmbeddingEvent::UPDATE;
+      $event = new DropaiEmbeddingEvent($data);
+      $this->eventDispatcher->dispatch($event, $event_type);
+
+      $this->loggerFactory->get('dropai')->notice(
+        '@action @id in vector database: @vector',
         [
-          '@type' => $entity->getEntityTypeId(),
-          '@id' => $entity->id(),
-          '@error' => $e->getMessage(),
+          '@action' => $action,
+          '@id' => $id,
+          '@vector' => print_r($embeddings[0], 1),
         ]
       );
     }
-
-    $this->loggerFactory->get('dropai')->notice(
-      'Upserted @type @id in vector database: @vector',
-      [
-        '@type' => $entity->getEntityTypeId(),
-        '@id' => $entity->id(),
-        '@vector' => '<pre>' . print_r($data, 1) . '</pre>',
-      ]
-    );
+    catch (\Exception $e) {
+      $this->loggerFactory->get('dropai')->error($e->getMessage());
+    }
   }
 
   /**
@@ -228,24 +240,27 @@ class EntityUpdate {
    * Used to remove content from the vector database when it has been deleted
    * from Drupal. This method fires on hook_entity_delete().
    *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
-   *   A content entity in Drupal.
+   * @param int
+   *   Entity ID.
+   * @param string
+   *   Entity type.
+   * @param string
+   *   Entity bundle.
    */
-  public function deleteEntity(int $entity_id, string $entity_type) {
+  public function deleteEntity(int $entity_id, string $entity_type, string $entity_bundle) {
+    $id = $entity_type . ':' . $entity_id . ':' . $entity_bundle;
+    $data = [
+      'id' => $id,
+      'namespace' => $entity_type,
+    ];
+
+    $event = new DropaiEmbeddingEvent(DropaiEmbeddingEvent::DELETE, $data);
+    $this->eventDispatcher->dispatch($event, DropaiEmbeddingEvent::UPDATE);
+
     $this->loggerFactory->get('dropai')->notice(
-      'Removed @type @id from vector database.',
-      ['@type' => $entity_type, '@id' => $entity_id]
+      'Removed @id from vector database.',
+      ['@id' => $id]
     );
   }
-
-  /**
-   * Add all documents to the vector database.
-   */
-  public function addAllDocuments() { }
-
-  /**
-   * Delete all documents from the vector database.
-   */
-  public function removeAllDocuments() { }
 
 }

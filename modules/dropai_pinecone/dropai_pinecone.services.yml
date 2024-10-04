@@ -5,3 +5,10 @@ services:
     arguments: ['@config.factory', '@logger.factory']
     tags:
       - { name: dropai_service_embedding_provider }
+
+  # Define a Event Subscriber.
+  dropai_pinecone.service_embedding_event_subscriber:
+    class: Drupal\dropai_pinecone\EventSubscriber\PineconeEmbeddingEventSubscriber
+    tags:
+      - { name: event_subscriber }
+    arguments: ['@dropai_pinecone.service_embedding_provider', '@logger.factory']

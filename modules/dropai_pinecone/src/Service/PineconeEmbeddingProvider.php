@@ -114,7 +114,7 @@ class PineconeEmbeddingProvider implements DropaiEmbeddingProviderInterface {
       );
     }
     else {
-      $this->loggerFactory->get('dropai_pinecone')->notice('<pre>' . print_r($response, 1) . '<pre>');
+      $this->loggerFactory->get('dropai_pinecone')->notice(print_r($response, 1));
     }
 
     curl_close($ch);

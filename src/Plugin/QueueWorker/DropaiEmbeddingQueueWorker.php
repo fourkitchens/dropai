@@ -72,11 +72,11 @@ class DropaiEmbeddingQueueWorker extends QueueWorkerBase implements ContainerFac
             if (is_null($entity)) {
               return;
             }
-            $this->entityUpdate->upsertEntiy($entity);
+            $this->entityUpdate->upsertEntiy($entity, $data['action']);
             break;
 
           case 'remove':
-            $this->entityUpdate->deleteEntity($data['entity_id'], $data['entity_type']);
+            $this->entityUpdate->deleteEntity($data['entity_id'], $data['entity_type'], $data['entity_bundle']);
             break;
         }
       }
